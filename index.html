@@ -1,0 +1,1081 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Prism &mdash; Light Refraction Puzzle</title>
+<style>
+  :root{
+    --bg-0:#05060a;
+    --bg-1:#0b0f1a;
+    --panel:#11162452;
+    --panel-solid:#11172688;
+    --border:#2a3350;
+    --accent:#5ee7ff;
+    --accent-2:#ff5e9e;
+    --accent-3:#ffd75e;
+    --good:#5eff9e;
+    --text:#e8edf7;
+    --muted:#8b93ad;
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0; padding:0; height:100%;
+    background:
+      radial-gradient(1200px 600px at 20% -10%, #1a2140 0%, transparent 60%),
+      radial-gradient(1000px 700px at 110% 20%, #2a1436 0%, transparent 55%),
+      var(--bg-0);
+    color:var(--text);
+    font-family:'Segoe UI', system-ui, -apple-system, Roboto, Arial, sans-serif;
+    overflow-x:hidden;
+  }
+  #app{
+    min-height:100%;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    padding:14px 12px 40px;
+    gap:12px;
+  }
+  header{
+    width:100%;
+    max-width:1040px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    flex-wrap:wrap;
+  }
+  h1{
+    font-size:1.35rem;
+    margin:0;
+    letter-spacing:0.5px;
+    background:linear-gradient(90deg,var(--accent),var(--accent-2));
+    -webkit-background-clip:text;
+    background-clip:text;
+    color:transparent;
+    font-weight:800;
+  }
+  h1 small{
+    display:block;
+    font-size:0.6rem;
+    letter-spacing:2px;
+    color:var(--muted);
+    font-weight:600;
+    -webkit-text-fill-color:var(--muted);
+  }
+  .levels{
+    display:flex;
+    gap:6px;
+  }
+  .lvl-btn{
+    width:34px;height:34px;
+    border-radius:8px;
+    border:1px solid var(--border);
+    background:var(--panel);
+    color:var(--text);
+    font-weight:700;
+    cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+    position:relative;
+    transition:transform .15s, border-color .15s;
+  }
+  .lvl-btn:hover{ transform:translateY(-2px); border-color:var(--accent); }
+  .lvl-btn.active{ border-color:var(--accent); box-shadow:0 0 14px #5ee7ff55; }
+  .lvl-btn.done::after{
+    content:'✓';
+    position:absolute; top:-6px; right:-6px;
+    background:var(--good); color:#04160c;
+    width:15px;height:15px;border-radius:50%;
+    font-size:10px; display:flex;align-items:center;justify-content:center;
+    font-weight:900;
+  }
+
+  main{
+    width:100%;
+    max-width:1040px;
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+  }
+
+  .board{
+    position:relative;
+    width:100%;
+    aspect-ratio:960/600;
+    border-radius:16px;
+    overflow:hidden;
+    border:1px solid var(--border);
+    background:#04060c;
+    box-shadow:0 20px 60px -20px #000c, inset 0 0 0 1px #ffffff08;
+  }
+  #glcanvas{
+    width:100%;
+    height:100%;
+    display:block;
+    touch-action:none;
+    cursor:crosshair;
+  }
+  .board.armed #glcanvas{ cursor:copy; }
+
+  .hint-badge{
+    position:absolute;
+    top:10px; left:10px;
+    max-width:62%;
+    background:var(--panel-solid);
+    backdrop-filter:blur(6px);
+    border:1px solid var(--border);
+    padding:8px 12px;
+    border-radius:10px;
+    font-size:0.78rem;
+    line-height:1.35;
+    color:var(--muted);
+    pointer-events:none;
+  }
+  .hint-badge b{ color:var(--text); }
+
+  .stat-badge{
+    position:absolute;
+    top:10px; right:10px;
+    background:var(--panel-solid);
+    border:1px solid var(--border);
+    padding:6px 10px;
+    border-radius:10px;
+    font-size:0.72rem;
+    color:var(--muted);
+    text-align:right;
+    pointer-events:none;
+  }
+  .stat-badge b{ color:var(--accent-3); }
+
+  .float-toolbar{
+    position:absolute;
+    display:none;
+    gap:4px;
+    background:#0b0f1ce6;
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:4px;
+    transform:translate(-50%,-140%);
+    z-index:5;
+  }
+  .float-toolbar button{
+    width:28px;height:28px;
+    border-radius:7px;
+    border:none;
+    background:#1a2338;
+    color:var(--text);
+    cursor:pointer;
+    font-size:13px;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .float-toolbar button:hover{ background:var(--accent); color:#04121a; }
+  .float-toolbar button.danger:hover{ background:#ff5e5e; }
+
+  .win-overlay{
+    position:absolute; inset:0;
+    display:none;
+    align-items:center; justify-content:center;
+    background:radial-gradient(circle at 50% 40%, #0c1830cc, #010204ee);
+    backdrop-filter:blur(3px);
+    z-index:10;
+    text-align:center;
+  }
+  .win-overlay.show{ display:flex; }
+  .win-card{ display:flex; flex-direction:column; align-items:center; gap:10px; padding:20px; }
+  .win-card h2{
+    margin:0; font-size:1.6rem;
+    color:var(--good);
+    text-shadow:0 0 20px #5eff9e88;
+  }
+  .win-card p{ margin:0; color:var(--muted); font-size:0.85rem; max-width:340px; }
+  .win-card .row{ display:flex; gap:10px; margin-top:6px; }
+
+  button.cta{
+    background:linear-gradient(135deg,var(--accent),#3a8bff);
+    border:none; color:#04121a; font-weight:800;
+    padding:10px 18px; border-radius:10px; cursor:pointer;
+    font-size:0.85rem;
+    box-shadow:0 8px 22px -8px #5ee7ffaa;
+  }
+  button.ghost{
+    background:transparent; border:1px solid var(--border);
+    color:var(--text); padding:10px 16px; border-radius:10px;
+    cursor:pointer; font-size:0.85rem;
+  }
+  button.cta:hover, button.ghost:hover{ filter:brightness(1.12); }
+
+  .console{
+    display:flex;
+    gap:12px;
+    flex-wrap:wrap;
+    align-items:stretch;
+    justify-content:space-between;
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:14px;
+    padding:12px 14px;
+  }
+  .tray{
+    display:flex;
+    gap:10px;
+  }
+  .piece-card{
+    width:104px;
+    padding:10px 8px;
+    border-radius:12px;
+    border:1px solid var(--border);
+    background:#0d1220;
+    cursor:pointer;
+    text-align:center;
+    user-select:none;
+    transition:border-color .15s, transform .15s;
+    position:relative;
+  }
+  .piece-card:hover{ transform:translateY(-2px); }
+  .piece-card.armed{ border-color:var(--accent); box-shadow:0 0 16px #5ee7ff44; }
+  .piece-card.empty{ opacity:0.35; cursor:not-allowed; }
+  .piece-card .ico{ height:38px; display:flex;align-items:center;justify-content:center; margin-bottom:4px;}
+  .piece-card .name{ font-size:0.72rem; font-weight:700; }
+  .piece-card .count{ font-size:0.68rem; color:var(--muted); margin-top:2px;}
+  .piece-card .count b{ color:var(--accent-3); }
+
+  .actions{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+
+  footer{
+    max-width:1040px;
+    color:var(--muted);
+    font-size:0.72rem;
+    text-align:center;
+    padding:6px 10px;
+    line-height:1.5;
+  }
+  footer kbd{
+    background:#141a2b; border:1px solid var(--border);
+    border-radius:4px; padding:1px 5px; font-size:0.68rem;
+  }
+
+  @media (max-width:640px){
+    .hint-badge{ font-size:0.68rem; max-width:70%; }
+    .piece-card{ width:88px; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <header>
+    <h1>PRISM<small>LIGHT &middot; REFRACTION &middot; MIRRORS</small></h1>
+    <div class="levels" id="levelButtons"></div>
+  </header>
+
+  <main>
+    <div class="board" id="board">
+      <canvas id="glcanvas"></canvas>
+      <div class="hint-badge" id="hintBadge"></div>
+      <div class="stat-badge" id="statBadge"></div>
+      <div class="float-toolbar" id="floatToolbar">
+        <button id="rotCCW" title="Rotate left">⟲</button>
+        <button id="rotCW" title="Rotate right">⟳</button>
+        <button id="delSel" class="danger" title="Remove">✕</button>
+      </div>
+      <div class="win-overlay" id="winOverlay">
+        <div class="win-card">
+          <h2 id="winTitle">Beam Locked On Target</h2>
+          <p id="winText">The laser reaches the receiver. Level solved.</p>
+          <div class="row">
+            <button class="ghost" id="replayBtn">Replay</button>
+            <button class="cta" id="nextBtn">Next Level →</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="console">
+      <div class="tray" id="tray"></div>
+      <div class="actions">
+        <button class="ghost" id="resetBtn">↺ Reset Level</button>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    Drag pieces from the tray onto the field. Click a placed piece to select it — drag the outer ring to rotate, drag the body to move, <kbd>Delete</kbd> to remove.
+    Mirrors reflect the beam; prisms bend it by real Snell's-law refraction. Guide the laser into the golden receiver.
+  </footer>
+
+</div>
+
+<script>
+"use strict";
+
+/* ============================== CONSTANTS ============================== */
+const WORLD_W = 960, WORLD_H = 600;
+const GRID = 20;
+const GLASS_N = 1.55;
+const EPS = 0.001;
+const MAX_BOUNCES = 60;
+const MIRROR_HALF_LEN = 55;
+const PRISM_R = 52;
+
+/* ============================== VEC MATH ============================== */
+const V = {
+  sub:(a,b)=>({x:a.x-b.x,y:a.y-b.y}),
+  add:(a,b)=>({x:a.x+b.x,y:a.y+b.y}),
+  scale:(a,s)=>({x:a.x*s,y:a.y*s}),
+  dot:(a,b)=>a.x*b.x+a.y*b.y,
+  len:(a)=>Math.hypot(a.x,a.y),
+  norm:(a)=>{ const l=Math.hypot(a.x,a.y)||1; return {x:a.x/l,y:a.y/l}; },
+  fromAngle:(a)=>({x:Math.cos(a),y:Math.sin(a)}),
+  perp:(a)=>({x:-a.y,y:a.x}),
+  rot:(p,a)=>({x:p.x*Math.cos(a)-p.y*Math.sin(a), y:p.x*Math.sin(a)+p.y*Math.cos(a)}),
+  neg:(a)=>({x:-a.x,y:-a.y}),
+};
+
+function reflect(I,N){
+  const d = V.dot(I,N);
+  return { x: I.x-2*d*N.x, y: I.y-2*d*N.y };
+}
+function refractVec(I,N,eta){
+  const dotNI = V.dot(N,I);
+  const k = 1 - eta*eta*(1-dotNI*dotNI);
+  if(k<0) return null;
+  const sq = Math.sqrt(k);
+  const f = eta*dotNI+sq;
+  return { x: eta*I.x - f*N.x, y: eta*I.y - f*N.y };
+}
+
+/* ray p + t*d  vs segment a-b -> smallest t>eps, else null */
+function raySegmentT(p,d,a,b){
+  const s = V.sub(b,a);
+  const rxs = d.x*s.y - d.y*s.x;
+  if (Math.abs(rxs) < 1e-9) return null;
+  const qp = V.sub(a,p);
+  const t = (qp.x*s.y - qp.y*s.x)/rxs;
+  const u = (qp.x*d.y - qp.y*d.x)/rxs;
+  if (t>1e-4 && u>=-1e-4 && u<=1+1e-4) return t;
+  return null;
+}
+function rayCircleT(p,d,c,r){
+  const oc = V.sub(p,c);
+  const b = 2*V.dot(oc,d);
+  const cc = V.dot(oc,oc)-r*r;
+  const disc = b*b-4*cc;
+  if (disc<0) return null;
+  const sq = Math.sqrt(disc);
+  const t1 = (-b-sq)/2, t2=(-b+sq)/2;
+  if (t1>1e-4) return t1;
+  if (t2>1e-4) return t2;
+  return null;
+}
+function pointSegDist(p,a,b){
+  const ab = V.sub(b,a); const ap = V.sub(p,a);
+  const t = Math.max(0,Math.min(1, V.dot(ap,ab)/(V.dot(ab,ab)||1)));
+  const proj = V.add(a, V.scale(ab,t));
+  return V.len(V.sub(p,proj));
+}
+function pointInPolygon(p, verts){
+  let inside=false;
+  for(let i=0,j=verts.length-1;i<verts.length;j=i++){
+    const vi=verts[i], vj=verts[j];
+    const intersect = ((vi.y>p.y)!==(vj.y>p.y)) &&
+      (p.x < (vj.x-vi.x)*(p.y-vi.y)/((vj.y-vi.y)||1e-9)+vi.x);
+    if(intersect) inside=!inside;
+  }
+  return inside;
+}
+
+/* ============================== LEVELS ============================== */
+const LEVELS = [
+  {
+    name:"First Light",
+    hint:"Drag a <b>mirror</b> into the beam's path and position it to bounce the laser down into the golden receiver.",
+    laser:{x:50,y:110,angle:0},
+    goal:{x:530,y:540,r:24},
+    walls:[],
+    inventory:{mirror:2, prism:0},
+  },
+  {
+    name:"Bent Light",
+    hint:"A wall blocks the direct route. Use a <b>mirror</b> to steer the beam around it, then a <b>prism</b> to refract it the rest of the way into the receiver.",
+    laser:{x:50,y:150,angle:0},
+    goal:{x:860,y:470,r:22},
+    walls:[
+      {x1:380,y1:0,x2:380,y2:330},
+    ],
+    inventory:{mirror:1, prism:1},
+  },
+  {
+    name:"The Gauntlet",
+    hint:"Two barriers stand between the laser and the receiver. Combine <b>mirrors</b> and <b>prisms</b> — refraction bends light gradually, reflection turns it sharply.",
+    laser:{x:50,y:520,angle:-90},
+    goal:{x:900,y:90,r:20},
+    walls:[
+      {x1:260,y1:270,x2:260,y2:600},
+      {x1:620,y1:0,x2:620,y2:360},
+    ],
+    inventory:{mirror:2, prism:2},
+  },
+];
+
+/* ============================== STATE ============================== */
+const state = {
+  levelIndex:0,
+  placed:[],           // {id,type,x,y,angle}
+  inventory:{mirror:0,prism:0},
+  selectedId:null,
+  armed:null,           // 'mirror' | 'prism' | null
+  solved:false,
+  dragMode:null,        // 'move' | 'rotate'
+  dragOffset:{x:0,y:0},
+  nextId:1,
+  completed:new Set(),
+  lastTrace:null,
+};
+
+function currentLevel(){ return LEVELS[state.levelIndex]; }
+
+function loadLevel(idx){
+  state.levelIndex = idx;
+  const lvl = LEVELS[idx];
+  state.placed = [];
+  state.inventory = { mirror: lvl.inventory.mirror, prism: lvl.inventory.prism };
+  state.selectedId = null;
+  state.armed = null;
+  state.solved = false;
+  document.getElementById('winOverlay').classList.remove('show');
+  document.getElementById('hintBadge').innerHTML = `<b>Lvl ${idx+1} — ${lvl.name}</b><br>${lvl.hint}`;
+  document.getElementById('nextBtn').style.display = (idx>=LEVELS.length-1) ? 'none' : 'inline-block';
+  renderTray();
+  renderLevelButtons();
+  updateStatBadge();
+}
+
+function resetLevel(){ loadLevel(state.levelIndex); }
+
+/* ============================== GEOMETRY BUILDERS ============================== */
+function mirrorEndpoints(obj){
+  const dir = V.fromAngle(obj.angle);
+  const half = V.scale(dir, MIRROR_HALF_LEN);
+  return [V.sub(obj,half), V.add(obj,half)];
+}
+function prismVertices(obj){
+  const local = [ {x:0,y:-PRISM_R}, {x:-PRISM_R*0.92,y:PRISM_R*0.62}, {x:PRISM_R*0.92,y:PRISM_R*0.62} ];
+  return local.map(p=>{
+    const rp = V.rot(p, obj.angle);
+    return { x: obj.x+rp.x, y: obj.y+rp.y };
+  });
+}
+function polyCentroid(verts){
+  let cx=0,cy=0;
+  verts.forEach(v=>{cx+=v.x;cy+=v.y;});
+  return {x:cx/verts.length, y:cy/verts.length};
+}
+
+/* ============================== BEAM TRACE ============================== */
+function traceBeam(placed, laser){
+  const origin0 = {x:laser.x,y:laser.y};
+  const dir0 = V.fromAngle(laser.angle*Math.PI/180);
+  const lvl = currentLevel();
+
+  const mirrors = placed.filter(o=>o.type==='mirror').map(o=>{
+    const [a,b] = mirrorEndpoints(o);
+    return {a,b};
+  });
+  const prisms = placed.filter(o=>o.type==='prism').map(o=>{
+    const verts = prismVertices(o);
+    const centroid = polyCentroid(verts);
+    return {verts,centroid};
+  });
+  const boundary = [
+    {a:{x:0,y:0}, b:{x:WORLD_W,y:0}},
+    {a:{x:WORLD_W,y:0}, b:{x:WORLD_W,y:WORLD_H}},
+    {a:{x:WORLD_W,y:WORLD_H}, b:{x:0,y:WORLD_H}},
+    {a:{x:0,y:WORLD_H}, b:{x:0,y:0}},
+  ];
+  const walls = lvl.walls.map(w=>({a:{x:w.x1,y:w.y1}, b:{x:w.x2,y:w.y2}}));
+
+  let o = origin0, d = V.norm(dir0);
+  const segments = [];
+  let hitGoal = false;
+
+  for(let bounce=0; bounce<MAX_BOUNCES; bounce++){
+    let best = null;
+
+    for(const m of mirrors){
+      const t = raySegmentT(o,d,m.a,m.b);
+      if(t!==null && (!best || t<best.t)) best = {t, kind:'mirror', a:m.a, b:m.b};
+    }
+    for(const w of walls){
+      const t = raySegmentT(o,d,w.a,w.b);
+      if(t!==null && (!best || t<best.t)) best = {t, kind:'wall'};
+    }
+    for(const bnd of boundary){
+      const t = raySegmentT(o,d,bnd.a,bnd.b);
+      if(t!==null && (!best || t<best.t)) best = {t, kind:'wall'};
+    }
+    for(const pr of prisms){
+      const n = pr.verts.length;
+      for(let i=0;i<n;i++){
+        const a = pr.verts[i], b = pr.verts[(i+1)%n];
+        const t = raySegmentT(o,d,a,b);
+        if(t!==null && (!best || t<best.t)) best = {t, kind:'prism', a, b, centroid:pr.centroid};
+      }
+    }
+    {
+      const t = rayCircleT(o,d,{x:lvl.goal.x,y:lvl.goal.y}, lvl.goal.r);
+      if(t!==null && (!best || t<best.t)) best = {t, kind:'goal'};
+    }
+
+    if(!best){
+      segments.push({x1:o.x,y1:o.y,x2:o.x+d.x*2000,y2:o.y+d.y*2000});
+      break;
+    }
+    const hit = V.add(o, V.scale(d,best.t));
+    segments.push({x1:o.x,y1:o.y,x2:hit.x,y2:hit.y});
+
+    if(best.kind==='wall'){ break; }
+    if(best.kind==='goal'){ hitGoal = true; break; }
+
+    if(best.kind==='mirror'){
+      const edge = V.sub(best.b,best.a);
+      let n = V.norm(V.perp(edge));
+      if(V.dot(d,n) > 0) n = V.neg(n);
+      d = V.norm(reflect(d,n));
+      o = V.add(hit, V.scale(d,EPS));
+    } else if(best.kind==='prism'){
+      const edge = V.sub(best.b,best.a);
+      const mid = V.scale(V.add(best.a,best.b),0.5);
+      let outward = V.norm(V.perp(edge));
+      if(V.dot(outward, V.sub(mid,best.centroid)) < 0) outward = V.neg(outward);
+      const entering = V.dot(d,outward) < 0;
+      const N = entering ? outward : V.neg(outward);
+      const eta = entering ? (1/GLASS_N) : (GLASS_N/1);
+      let nd = refractVec(d,N,eta);
+      if(!nd){ nd = reflect(d,N); }
+      d = V.norm(nd);
+      o = V.add(hit, V.scale(d,EPS));
+    }
+  }
+  return { segments, hitGoal };
+}
+
+/* ============================== WEBGL RENDERER ============================== */
+const canvas = document.getElementById('glcanvas');
+let gl = canvas.getContext('webgl2', {antialias:true, alpha:false}) ||
+         canvas.getContext('webgl', {antialias:true, alpha:false});
+let usingGL = !!gl;
+
+let prog, aPos, aColor, uRes;
+const glBuf = { pos:null, color:null };
+
+function compileShader(src,type){
+  const s = gl.createShader(type);
+  gl.shaderSource(s,src);
+  gl.compileShader(s);
+  if(!gl.getShaderParameter(s,gl.COMPILE_STATUS)){
+    console.error(gl.getShaderInfoLog(s));
+  }
+  return s;
+}
+function initGL(){
+  const vsSrc = `
+    attribute vec2 aPos;
+    attribute vec4 aColor;
+    uniform vec2 uRes;
+    varying vec4 vColor;
+    void main(){
+      vec2 clip = vec2((aPos.x/uRes.x)*2.0-1.0, 1.0-(aPos.y/uRes.y)*2.0);
+      gl_Position = vec4(clip,0.0,1.0);
+      vColor = aColor;
+    }`;
+  const fsSrc = `
+    precision mediump float;
+    varying vec4 vColor;
+    void main(){ gl_FragColor = vColor; }`;
+  const vs = compileShader(vsSrc, gl.VERTEX_SHADER);
+  const fs = compileShader(fsSrc, gl.FRAGMENT_SHADER);
+  prog = gl.createProgram();
+  gl.attachShader(prog,vs); gl.attachShader(prog,fs);
+  gl.linkProgram(prog);
+  if(!gl.getProgramParameter(prog, gl.LINK_STATUS)){
+    console.error(gl.getProgramInfoLog(prog));
+  }
+  gl.useProgram(prog);
+  aPos = gl.getAttribLocation(prog,'aPos');
+  aColor = gl.getAttribLocation(prog,'aColor');
+  uRes = gl.getUniformLocation(prog,'uRes');
+  glBuf.pos = gl.createBuffer();
+  glBuf.color = gl.createBuffer();
+  gl.enable(gl.BLEND);
+}
+
+/* Batch: array of triangles, each vertex = {x,y,r,g,b,a} */
+let batchOpaque = [];
+let batchGlow = [];
+
+function pushTri(batch, p0,p1,p2, col){
+  batch.push(p0.x,p0.y,col[0],col[1],col[2],col[3]);
+  batch.push(p1.x,p1.y,col[0],col[1],col[2],col[3]);
+  batch.push(p2.x,p2.y,col[0],col[1],col[2],col[3]);
+}
+function pushQuad(batch, p0,p1,p2,p3, col){
+  pushTri(batch,p0,p1,p2,col);
+  pushTri(batch,p0,p2,p3,col);
+}
+function thickLine(batch, x1,y1,x2,y2,width,col){
+  const d = V.norm({x:x2-x1,y:y2-y1});
+  const n = V.perp(d);
+  const hw = width/2;
+  const p0 = {x:x1+n.x*hw, y:y1+n.y*hw};
+  const p1 = {x:x2+n.x*hw, y:y2+n.y*hw};
+  const p2 = {x:x2-n.x*hw, y:y2-n.y*hw};
+  const p3 = {x:x1-n.x*hw, y:y1-n.y*hw};
+  pushQuad(batch,p0,p1,p2,p3,col);
+}
+function circleTris(batch, cx,cy,r,col,segs=28){
+  const pts=[];
+  for(let i=0;i<segs;i++){
+    const a = i/segs*Math.PI*2;
+    pts.push({x:cx+Math.cos(a)*r, y:cy+Math.sin(a)*r});
+  }
+  for(let i=0;i<segs;i++){
+    pushTri(batch, {x:cx,y:cy}, pts[i], pts[(i+1)%segs], col);
+  }
+}
+function ringTris(batch, cx,cy,rOuter,rInner,col,segs=40){
+  for(let i=0;i<segs;i++){
+    const a0 = i/segs*Math.PI*2, a1=(i+1)/segs*Math.PI*2;
+    const p0={x:cx+Math.cos(a0)*rOuter,y:cy+Math.sin(a0)*rOuter};
+    const p1={x:cx+Math.cos(a1)*rOuter,y:cy+Math.sin(a1)*rOuter};
+    const p2={x:cx+Math.cos(a1)*rInner,y:cy+Math.sin(a1)*rInner};
+    const p3={x:cx+Math.cos(a0)*rInner,y:cy+Math.sin(a0)*rInner};
+    pushQuad(batch,p0,p1,p2,p3,col);
+  }
+}
+function polyTris(batch, verts, col){
+  const c = polyCentroid(verts);
+  for(let i=0;i<verts.length;i++){
+    pushTri(batch, c, verts[i], verts[(i+1)%verts.length], col);
+  }
+}
+function polyOutline(batch, verts, width, col){
+  for(let i=0;i<verts.length;i++){
+    const a = verts[i], b = verts[(i+1)%verts.length];
+    thickLine(batch,a.x,a.y,b.x,b.y,width,col);
+  }
+}
+
+function flush(batch, blendMode){
+  if(batch.length===0) return;
+  const data = new Float32Array(batch);
+  const stride = 6*4;
+  gl.bindBuffer(gl.ARRAY_BUFFER, glBuf.pos);
+  gl.bufferData(gl.ARRAY_BUFFER, data, gl.DYNAMIC_DRAW);
+  gl.enableVertexAttribArray(aPos);
+  gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, stride, 0);
+  gl.enableVertexAttribArray(aColor);
+  gl.vertexAttribPointer(aColor, 4, gl.FLOAT, false, stride, 8);
+  if(blendMode==='additive'){
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
+  } else {
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+  }
+  gl.drawArrays(gl.TRIANGLES, 0, batch.length/6);
+}
+
+/* ============================== COLORS ============================== */
+const COL = {
+  bg:[0.02,0.03,0.06,1],
+  grid:[0.12,0.16,0.26,0.5],
+  wall:[0.35,0.38,0.5,1],
+  wallEdge:[0.55,0.6,0.75,1],
+  mirrorBody:[0.72,0.8,0.92,1],
+  mirrorEdge:[0.85,0.95,1,1],
+  mirrorSel:[0.37,0.91,1,1],
+  prismFill:[0.25,0.55,0.75,0.35],
+  prismEdge:[0.55,0.95,1,0.9],
+  prismSel:[1,0.6,0.85,0.9],
+  goalOuter:[1,0.85,0.3,0.9],
+  goalInner:[1,0.95,0.6,1],
+  goalSolved:[0.4,1,0.6,1],
+  laser:[1,0.35,0.4,1],
+  beamCore:[1,0.95,0.85,1],
+  beamGlowA:[1,0.4,0.35,0.5],
+  beamGlowB:[1,0.75,0.35,0.28],
+  handle:[1,1,1,0.9],
+};
+
+/* ============================== RENDER FRAME ============================== */
+function resizeCanvas(){
+  const rect = canvas.getBoundingClientRect();
+  const dpr = Math.min(window.devicePixelRatio||1, 2);
+  const w = Math.round(rect.width*dpr), h = Math.round(rect.height*dpr);
+  if(canvas.width!==w || canvas.height!==h){
+    canvas.width = w; canvas.height = h;
+  }
+  if(usingGL) gl.viewport(0,0,canvas.width,canvas.height);
+}
+
+function screenToWorld(clientX,clientY){
+  const rect = canvas.getBoundingClientRect();
+  const x = (clientX-rect.left)/rect.width * WORLD_W;
+  const y = (clientY-rect.top)/rect.height * WORLD_H;
+  return {x,y};
+}
+function worldToScreen(x,y){
+  const rect = canvas.getBoundingClientRect();
+  return { x: rect.left + x/WORLD_W*rect.width, y: rect.top + y/WORLD_H*rect.height };
+}
+
+let pulseT = 0;
+
+function drawScene(){
+  resizeCanvas();
+  batchOpaque = [];
+  batchGlow = [];
+
+  if(usingGL){
+    gl.clearColor(COL.bg[0],COL.bg[1],COL.bg[2],1);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.uniform2f(uRes, WORLD_W, WORLD_H);
+  }
+
+  // grid
+  for(let x=0;x<=WORLD_W;x+=GRID*2){
+    thickLine(batchOpaque, x,0,x,WORLD_H,1,COL.grid);
+  }
+  for(let y=0;y<=WORLD_H;y+=GRID*2){
+    thickLine(batchOpaque, 0,y,WORLD_W,y,1,COL.grid);
+  }
+
+  const lvl = currentLevel();
+
+  // walls
+  lvl.walls.forEach(w=>{
+    thickLine(batchOpaque, w.x1,w.y1,w.x2,w.y2, 14, COL.wall);
+    thickLine(batchOpaque, w.x1,w.y1,w.x2,w.y2, 4, COL.wallEdge);
+  });
+
+  // goal
+  const solvedNow = state.solved;
+  const pr = 6+Math.sin(pulseT*2.4)*2.5;
+  const goalCol = solvedNow ? COL.goalSolved : COL.goalOuter;
+  ringTris(batchGlow, lvl.goal.x, lvl.goal.y, lvl.goal.r+pr+10, lvl.goal.r+pr, [goalCol[0],goalCol[1],goalCol[2],0.35]);
+  ringTris(batchOpaque, lvl.goal.x, lvl.goal.y, lvl.goal.r, lvl.goal.r-5, goalCol);
+  circleTris(batchOpaque, lvl.goal.x, lvl.goal.y, lvl.goal.r-6, solvedNow?[0.2,0.5,0.3,1]:[0.35,0.28,0.08,1]);
+  circleTris(batchGlow, lvl.goal.x, lvl.goal.y, 5, [goalCol[0],goalCol[1],goalCol[2],0.9]);
+
+  // laser source
+  const ldir = V.fromAngle(lvl.laser.angle*Math.PI/180);
+  const lp = {x:lvl.laser.x, y:lvl.laser.y};
+  const back = V.sub(lp, V.scale(ldir,22));
+  const side = V.perp(ldir);
+  const bp1 = V.add(back, V.scale(side,12));
+  const bp2 = V.sub(back, V.scale(side,12));
+  const tip = V.add(lp, V.scale(ldir,6));
+  pushTri(batchOpaque, bp1,bp2,tip, [0.8,0.15,0.2,1]);
+  circleTris(batchGlow, lp.x,lp.y, 14, [1,0.3,0.3,0.5]);
+  circleTris(batchOpaque, lp.x,lp.y, 6, COL.laser);
+
+  // placed objects
+  state.placed.forEach(obj=>{
+    const isSel = obj.id === state.selectedId;
+    if(obj.type==='mirror'){
+      const [a,b] = mirrorEndpoints(obj);
+      if(isSel){
+        thickLine(batchGlow, a.x,a.y,b.x,b.y, 20, [COL.mirrorSel[0],COL.mirrorSel[1],COL.mirrorSel[2],0.35]);
+      }
+      thickLine(batchOpaque, a.x,a.y,b.x,b.y, 10, isSel?COL.mirrorSel:COL.mirrorBody);
+      thickLine(batchOpaque, a.x,a.y,b.x,b.y, 3, COL.mirrorEdge);
+      circleTris(batchOpaque, a.x,a.y,5,COL.mirrorEdge);
+      circleTris(batchOpaque, b.x,b.y,5,COL.mirrorEdge);
+    } else if(obj.type==='prism'){
+      const verts = prismVertices(obj);
+      if(isSel){
+        polyOutline(batchGlow, verts, 18, [COL.prismSel[0],COL.prismSel[1],COL.prismSel[2],0.3]);
+      }
+      polyTris(batchOpaque, verts, COL.prismFill);
+      polyOutline(batchOpaque, verts, 3, isSel?COL.prismSel:COL.prismEdge);
+    }
+    if(isSel){
+      const handle = rotateHandlePos(obj);
+      thickLine(batchOpaque, obj.x,obj.y, handle.x,handle.y, 2, [1,1,1,0.5]);
+      circleTris(batchOpaque, handle.x, handle.y, 8, COL.handle);
+      circleTris(batchOpaque, handle.x, handle.y, 4, [0.1,0.1,0.15,1]);
+    }
+  });
+
+  // beam
+  const result = traceBeam(state.placed, lvl.laser);
+  state.lastTrace = result;
+  const wasSolved = state.solved;
+  state.solved = result.hitGoal;
+  if(state.solved && !wasSolved){ onSolved(); }
+  if(!state.solved && wasSolved){ /* stays solved once shown; ignore flicker */ state.solved = wasSolved; }
+
+  result.segments.forEach(seg=>{
+    thickLine(batchGlow, seg.x1,seg.y1,seg.x2,seg.y2, 14, COL.beamGlowB);
+    thickLine(batchGlow, seg.x1,seg.y1,seg.x2,seg.y2, 7, COL.beamGlowA);
+    thickLine(batchOpaque, seg.x1,seg.y1,seg.x2,seg.y2, 2.2, COL.beamCore);
+  });
+
+  if(usingGL){
+    flush(batchGlow, 'additive');
+    flush(batchOpaque, 'normal');
+  }
+}
+
+function rotateHandlePos(obj){
+  const dist = obj.type==='mirror' ? MIRROR_HALF_LEN+28 : PRISM_R+28;
+  const dir = V.fromAngle(obj.angle);
+  return V.add(obj, V.scale(dir,dist));
+}
+
+/* ============================== SOLVE / WIN ============================== */
+let audioCtx = null;
+function chime(){
+  try{
+    audioCtx = audioCtx || new (window.AudioContext||window.webkitAudioContext)();
+    const t0 = audioCtx.currentTime;
+    [523.25,659.25,783.99].forEach((f,i)=>{
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type='sine'; osc.frequency.value=f;
+      gain.gain.setValueAtTime(0.0001,t0+i*0.09);
+      gain.gain.exponentialRampToValueAtTime(0.18,t0+i*0.09+0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001,t0+i*0.09+0.4);
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      osc.start(t0+i*0.09); osc.stop(t0+i*0.09+0.42);
+    });
+  }catch(e){ /* audio not available, ignore */ }
+}
+
+function onSolved(){
+  state.completed.add(state.levelIndex);
+  renderLevelButtons();
+  chime();
+  const overlay = document.getElementById('winOverlay');
+  const isLast = state.levelIndex >= LEVELS.length-1;
+  document.getElementById('winTitle').textContent = isLast ? "All Levels Solved!" : "Beam Locked On Target";
+  document.getElementById('winText').textContent = isLast
+    ? "You routed the laser through every level. Replay any level from the level selector above."
+    : "The receiver is powered. Advance to the next level whenever you're ready.";
+  document.getElementById('nextBtn').style.display = isLast ? 'none' : 'inline-block';
+  overlay.classList.add('show');
+}
+
+/* ============================== UI: TRAY / LEVELS ============================== */
+function renderTray(){
+  const tray = document.getElementById('tray');
+  tray.innerHTML = '';
+  const defs = [
+    {type:'mirror', label:'Mirror', icon:mirrorIcon()},
+    {type:'prism', label:'Prism', icon:prismIcon()},
+  ];
+  defs.forEach(d=>{
+    const count = state.inventory[d.type];
+    const card = document.createElement('div');
+    card.className = 'piece-card' + (state.armed===d.type?' armed':'') + (count<=0?' empty':'');
+    card.innerHTML = `<div class="ico">${d.icon}</div><div class="name">${d.label}</div><div class="count">x <b>${count}</b></div>`;
+    card.addEventListener('click', ()=>{
+      if(state.inventory[d.type]<=0) return;
+      state.armed = (state.armed===d.type) ? null : d.type;
+      state.selectedId = null;
+      document.getElementById('board').classList.toggle('armed', !!state.armed);
+      renderTray();
+    });
+    tray.appendChild(card);
+  });
+}
+function mirrorIcon(){
+  return `<svg width="40" height="34" viewBox="0 0 40 34"><line x1="6" y1="28" x2="34" y2="6" stroke="#cfe6ff" stroke-width="5" stroke-linecap="round"/></svg>`;
+}
+function prismIcon(){
+  return `<svg width="40" height="34" viewBox="0 0 40 34"><polygon points="20,4 5,30 35,30" fill="#3a8bb8aa" stroke="#8fe8ff" stroke-width="2"/></svg>`;
+}
+
+function renderLevelButtons(){
+  const box = document.getElementById('levelButtons');
+  box.innerHTML = '';
+  LEVELS.forEach((lvl,i)=>{
+    const b = document.createElement('button');
+    b.className = 'lvl-btn' + (i===state.levelIndex?' active':'') + (state.completed.has(i)?' done':'');
+    b.textContent = i+1;
+    b.title = lvl.name;
+    b.addEventListener('click', ()=>loadLevel(i));
+    box.appendChild(b);
+  });
+}
+
+function updateStatBadge(){
+  const el = document.getElementById('statBadge');
+  const lvl = currentLevel();
+  el.innerHTML = `Level ${state.levelIndex+1} / ${LEVELS.length}<br><b>${lvl.name}</b>`;
+}
+
+/* ============================== INPUT ============================== */
+const boardEl = document.getElementById('board');
+const floatToolbar = document.getElementById('floatToolbar');
+
+function hitTestPlaced(pt){
+  for(let i=state.placed.length-1;i>=0;i--){
+    const obj = state.placed[i];
+    if(obj.type==='mirror'){
+      const [a,b] = mirrorEndpoints(obj);
+      if(pointSegDist(pt,a,b) < 12) return obj;
+    } else if(obj.type==='prism'){
+      const verts = prismVertices(obj);
+      if(pointInPolygon(pt,verts)) return obj;
+      for(let k=0;k<verts.length;k++){
+        if(pointSegDist(pt,verts[k],verts[(k+1)%verts.length])<10) return obj;
+      }
+    }
+  }
+  return null;
+}
+function snap(v){ return Math.round(v/10)*10; }
+
+function clampToBounds(obj){
+  const margin = obj.type==='mirror' ? MIRROR_HALF_LEN+6 : PRISM_R+6;
+  obj.x = Math.max(margin, Math.min(WORLD_W-margin, obj.x));
+  obj.y = Math.max(margin, Math.min(WORLD_H-margin, obj.y));
+}
+
+let pointerDownWorld = null;
+
+canvas.addEventListener('pointerdown', (e)=>{
+  canvas.setPointerCapture(e.pointerId);
+  const pt = screenToWorld(e.clientX, e.clientY);
+  pointerDownWorld = pt;
+
+  if(state.armed){
+    const lvl = currentLevel();
+    const nearLaser = V.len(V.sub(pt,{x:lvl.laser.x,y:lvl.laser.y})) < 30;
+    const nearGoal = V.len(V.sub(pt,{x:lvl.goal.x,y:lvl.goal.y})) < 30;
+    if(!nearLaser && !nearGoal){
+      const obj = { id: state.nextId++, type: state.armed, x: snap(pt.x), y: snap(pt.y), angle: -Math.PI/4 };
+      clampToBounds(obj);
+      state.placed.push(obj);
+      state.inventory[state.armed]--;
+      state.selectedId = obj.id;
+      state.armed = null;
+      boardEl.classList.remove('armed');
+      renderTray();
+    }
+    return;
+  }
+
+  // check rotate handle of currently selected
+  if(state.selectedId!==null){
+    const sel = state.placed.find(o=>o.id===state.selectedId);
+    if(sel){
+      const handle = rotateHandlePos(sel);
+      if(V.len(V.sub(pt,handle)) < 14){
+        state.dragMode = 'rotate';
+        return;
+      }
+    }
+  }
+
+  const hit = hitTestPlaced(pt);
+  if(hit){
+    state.selectedId = hit.id;
+    state.dragMode = 'move';
+    state.dragOffset = { x: pt.x-hit.x, y: pt.y-hit.y };
+  } else {
+    state.selectedId = null;
+    state.dragMode = null;
+  }
+});
+
+canvas.addEventListener('pointermove', (e)=>{
+  if(!state.dragMode || state.selectedId===null) return;
+  const pt = screenToWorld(e.clientX, e.clientY);
+  const obj = state.placed.find(o=>o.id===state.selectedId);
+  if(!obj) return;
+  if(state.dragMode==='move'){
+    obj.x = pt.x - state.dragOffset.x;
+    obj.y = pt.y - state.dragOffset.y;
+    clampToBounds(obj);
+  } else if(state.dragMode==='rotate'){
+    obj.angle = Math.atan2(pt.y-obj.y, pt.x-obj.x);
+  }
+});
+
+window.addEventListener('pointerup', ()=>{
+  if(state.dragMode==='move' && state.selectedId!==null){
+    const obj = state.placed.find(o=>o.id===state.selectedId);
+    if(obj){ obj.x = snap(obj.x); obj.y = snap(obj.y); clampToBounds(obj); }
+  }
+  state.dragMode = null;
+});
+
+window.addEventListener('keydown', (e)=>{
+  if((e.key==='Delete' || e.key==='Backspace') && state.selectedId!==null){
+    removeSelected();
+  }
+});
+
+function removeSelected(){
+  const idx = state.placed.findIndex(o=>o.id===state.selectedId);
+  if(idx>=0){
+    const obj = state.placed[idx];
+    state.inventory[obj.type]++;
+    state.placed.splice(idx,1);
+    state.selectedId = null;
+    renderTray();
+  }
+}
+
+document.getElementById('rotCCW').addEventListener('click', ()=>{
+  const obj = state.placed.find(o=>o.id===state.selectedId);
+  if(obj) obj.angle -= Math.PI/12;
+});
+document.getElementById('rotCW').addEventListener('click', ()=>{
+  const obj = state.placed.find(o=>o.id===state.selectedId);
+  if(obj) obj.angle += Math.PI/12;
+});
+document.getElementById('delSel').addEventListener('click', removeSelected);
+
+document.getElementById('resetBtn').addEventListener('click', resetLevel);
+document.getElementById('replayBtn').addEventListener('click', ()=>{
+  document.getElementById('winOverlay').classList.remove('show');
+  resetLevel();
+});
+document.getElementById('nextBtn').addEventListener('click', ()=>{
+  document.getElementById('winOverlay').classList.remove('show');
+  loadLevel(Math.min(state.levelIndex+1, LEVELS.length-1));
+});
+
+/* ============================== MAIN LOOP ============================== */
+function updateFloatToolbar(){
+  const sel = state.placed.find(o=>o.id===state.selectedId);
+  if(!sel){ floatToolbar.style.display='none'; return; }
+  const s = worldToScreen(sel.x, sel.y);
+  const boardRect = boardEl.getBoundingClientRect();
+  floatToolbar.style.display = 'flex';
+  floatToolbar.style.left = (s.x - boardRect.left) + 'px';
+  floatToolbar.style.top = (s.y - boardRect.top - (sel.type==='mirror'?20:34)) + 'px';
+}
+
+function frame(ts){
+  pulseT = ts/1000;
+  drawScene();
+  updateFloatToolbar();
+  requestAnimationFrame(frame);
+}
+
+/* ============================== BOOT ============================== */
+if(usingGL){ initGL(); } else {
+  console.warn('WebGL unavailable — falling back cannot render. Please use a browser with WebGL support.');
+}
+loadLevel(0);
+requestAnimationFrame(frame);
+window.addEventListener('resize', resizeCanvas);
+
+/* debug hooks for automated testing */
+window.__PRISM_DEBUG__ = { state, LEVELS, traceBeam, currentLevel, loadLevel, V };
+</script>
+</body>
+</html>
