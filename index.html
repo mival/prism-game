@@ -136,20 +136,6 @@
   }
   .hint-badge b{ color:var(--text); }
 
-  .stat-badge{
-    position:absolute;
-    top:10px; right:10px;
-    background:var(--panel-solid);
-    border:1px solid var(--border);
-    padding:6px 10px;
-    border-radius:10px;
-    font-size:0.72rem;
-    color:var(--muted);
-    text-align:right;
-    pointer-events:none;
-  }
-  .stat-badge b{ color:var(--accent-3); }
-
   .rotate-hint{ display:none; }
 
   .float-toolbar{
@@ -285,8 +271,7 @@
       max-width:100%;
       max-height:100%;
     }
-    .hint-badge{ font-size:0.65rem; max-width:66%; padding:6px 9px; top:6px; left:6px; }
-    .stat-badge{ font-size:0.62rem; padding:4px 8px; top:6px; right:6px; }
+    .hint-badge{ font-size:0.65rem; max-width:82%; padding:6px 9px; top:6px; left:6px; }
     .float-toolbar button{ width:40px; height:40px; font-size:16px; }
     .console{
       flex:0 0 auto;
@@ -303,7 +288,7 @@
 
   /* Short viewports (phones in landscape) — squeeze chrome further so the
      board, which is wider than it is tall, gets nearly the full height. */
-  @media (max-height:500px){
+  @media (max-height:500px) and (orientation:landscape){
     #app{ padding:6px 8px; gap:4px; }
     h1{ font-size:0.85rem; }
     h1 small{ display:none; }
@@ -325,8 +310,7 @@
     .piece-card .name{ display:none; }
     .piece-card .count{ font-size:0.68rem; margin-top:0; }
     button.ghost{ padding:6px 10px; font-size:0.72rem; }
-    .hint-badge{ max-width:48%; padding:4px 8px; font-size:0.6rem; line-height:1.25; }
-    .stat-badge{ padding:3px 7px; font-size:0.58rem; }
+    .hint-badge{ max-width:62%; padding:4px 8px; font-size:0.6rem; line-height:1.25; }
   }
 
   /* Phone portrait: the board can only use the screen width, since a
@@ -353,7 +337,6 @@
     <div class="board" id="board">
       <canvas id="glcanvas"></canvas>
       <div class="hint-badge" id="hintBadge"></div>
-      <div class="stat-badge" id="statBadge"></div>
       <div class="float-toolbar" id="floatToolbar">
         <button id="rotCCW" title="Rotate left">⟲</button>
         <button id="rotCW" title="Rotate right">⟳</button>
@@ -528,7 +511,6 @@ function loadLevel(idx){
   document.getElementById('nextBtn').style.display = (idx>=LEVELS.length-1) ? 'none' : 'inline-block';
   renderTray();
   renderLevelButtons();
-  updateStatBadge();
   fitBoardMobile();
 }
 
@@ -821,7 +803,7 @@ const TOUCH_HANDLE_PX = 22;
 
 /* ============================== MOBILE LAYOUT ============================== */
 const MOBILE_QUERY = window.matchMedia('(max-width:700px), (max-height:500px)');
-const LANDSCAPE_SIDEBAR_QUERY = window.matchMedia('(max-height:500px)');
+const LANDSCAPE_SIDEBAR_QUERY = window.matchMedia('(max-height:500px) and (orientation:landscape)');
 function fitBoardMobile(){
   if(!MOBILE_QUERY.matches){
     boardEl.style.width = '';
@@ -1046,12 +1028,6 @@ function renderLevelButtons(){
     b.addEventListener('click', ()=>loadLevel(i));
     box.appendChild(b);
   });
-}
-
-function updateStatBadge(){
-  const el = document.getElementById('statBadge');
-  const lvl = currentLevel();
-  el.innerHTML = `Level ${state.levelIndex+1} / ${LEVELS.length}<br><b>${lvl.name}</b>`;
 }
 
 /* ============================== INPUT ============================== */
