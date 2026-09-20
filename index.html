@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Prism &mdash; Light Refraction Puzzle</title>
 <style>
   :root{
@@ -28,6 +28,8 @@
     color:var(--text);
     font-family:'Segoe UI', system-ui, -apple-system, Roboto, Arial, sans-serif;
     overflow-x:hidden;
+    overscroll-behavior:none;
+    -webkit-text-size-adjust:none;
   }
   #app{
     min-height:100%;
@@ -134,19 +136,7 @@
   }
   .hint-badge b{ color:var(--text); }
 
-  .stat-badge{
-    position:absolute;
-    top:10px; right:10px;
-    background:var(--panel-solid);
-    border:1px solid var(--border);
-    padding:6px 10px;
-    border-radius:10px;
-    font-size:0.72rem;
-    color:var(--muted);
-    text-align:right;
-    pointer-events:none;
-  }
-  .stat-badge b{ color:var(--accent-3); }
+  .rotate-hint{ display:none; }
 
   .float-toolbar{
     position:absolute;
@@ -255,9 +245,82 @@
     border-radius:4px; padding:1px 5px; font-size:0.68rem;
   }
 
-  @media (max-width:640px){
-    .hint-badge{ font-size:0.68rem; max-width:70%; }
-    .piece-card{ width:88px; }
+  @media (max-width:700px), (max-height:500px){
+    html,body{ height:100%; overflow:hidden; }
+    #app{
+      height:100vh; height:100dvh;
+      padding:8px 8px 8px;
+      gap:6px;
+      overflow:hidden;
+    }
+    header{ gap:6px; }
+    h1{ font-size:1rem; }
+    h1 small{ font-size:0.5rem; letter-spacing:1px; }
+    .lvl-btn{ width:28px; height:28px; font-size:0.8rem; }
+    main{
+      flex:1 1 auto;
+      min-height:0;
+      max-width:100%;
+      gap:6px;
+      align-items:center;
+      justify-content:center;
+    }
+    .board{
+      flex:0 0 auto;
+      width:auto;
+      max-width:100%;
+      max-height:100%;
+    }
+    .hint-badge{ font-size:0.65rem; max-width:82%; padding:6px 9px; top:6px; left:6px; }
+    .float-toolbar button{ width:40px; height:40px; font-size:16px; }
+    .console{
+      flex:0 0 auto;
+      padding:8px 10px;
+      gap:8px;
+    }
+    .piece-card{ width:76px; padding:7px 5px; }
+    .piece-card .ico{ height:28px; }
+    .piece-card .name{ font-size:0.65rem; }
+    .piece-card .count{ font-size:0.6rem; }
+    button.ghost{ padding:8px 12px; font-size:0.78rem; }
+    footer{ display:none; }
+  }
+
+  /* Short viewports (phones in landscape) — squeeze chrome further so the
+     board, which is wider than it is tall, gets nearly the full height. */
+  @media (max-height:500px) and (orientation:landscape){
+    #app{ padding:6px 8px; gap:4px; }
+    h1{ font-size:0.85rem; }
+    h1 small{ display:none; }
+    .lvl-btn{ width:24px; height:24px; font-size:0.72rem; }
+    main{ flex-direction:row; align-items:stretch; gap:6px; }
+    .board{ height:100%; }
+    .console{
+      flex-direction:column; align-items:stretch; justify-content:flex-start;
+      width:auto; padding:6px 8px; gap:6px;
+    }
+    .tray{ flex-direction:column; }
+    .actions{ margin-top:auto; }
+    .piece-card{
+      display:flex; flex-direction:row; align-items:center;
+      width:auto; padding:4px 10px 4px 6px; gap:6px;
+    }
+    .piece-card .ico{ height:22px; margin-bottom:0; }
+    .piece-card .ico svg{ width:28px; height:22px; }
+    .piece-card .name{ display:none; }
+    .piece-card .count{ font-size:0.68rem; margin-top:0; }
+    button.ghost{ padding:6px 10px; font-size:0.72rem; }
+    .hint-badge{ max-width:62%; padding:4px 8px; font-size:0.6rem; line-height:1.25; }
+  }
+
+  /* Phone portrait: the board can only use the screen width, since a
+     landscape-shaped puzzle can't cover a portrait screen without cropping.
+     A small nudge to rotate gets players to the much better landscape fit. */
+  @media (max-width:700px) and (orientation:portrait){
+    .rotate-hint{
+      display:block; text-align:center; color:var(--muted);
+      font-size:0.72rem; padding:2px 0;
+    }
   }
 </style>
 </head>
@@ -270,10 +333,10 @@
   </header>
 
   <main>
+    <div class="rotate-hint">🔄 Rotate your device to landscape for a bigger view</div>
     <div class="board" id="board">
       <canvas id="glcanvas"></canvas>
       <div class="hint-badge" id="hintBadge"></div>
-      <div class="stat-badge" id="statBadge"></div>
       <div class="float-toolbar" id="floatToolbar">
         <button id="rotCCW" title="Rotate left">⟲</button>
         <button id="rotCW" title="Rotate right">⟳</button>
@@ -448,7 +511,7 @@ function loadLevel(idx){
   document.getElementById('nextBtn').style.display = (idx>=LEVELS.length-1) ? 'none' : 'inline-block';
   renderTray();
   renderLevelButtons();
-  updateStatBadge();
+  fitBoardMobile();
 }
 
 function resetLevel(){ loadLevel(state.levelIndex); }
@@ -728,6 +791,64 @@ function worldToScreen(x,y){
   return { x: rect.left + x/WORLD_W*rect.width, y: rect.top + y/WORLD_H*rect.height };
 }
 
+/* Touch targets must stay a constant physical size however small the canvas
+   is scaled down to — a fixed world-unit threshold shrinks to nothing on a
+   phone, so hit-testing converts a CSS-pixel tolerance into world units. */
+function worldPerPixel(){
+  const rect = canvas.getBoundingClientRect();
+  return WORLD_W / (rect.width || 1);
+}
+const TOUCH_BODY_PX = 24;
+const TOUCH_HANDLE_PX = 22;
+
+/* ============================== MOBILE LAYOUT ============================== */
+const MOBILE_QUERY = window.matchMedia('(max-width:700px), (max-height:500px)');
+const LANDSCAPE_SIDEBAR_QUERY = window.matchMedia('(max-height:500px) and (orientation:landscape)');
+function fitBoardMobile(){
+  if(!MOBILE_QUERY.matches){
+    boardEl.style.width = '';
+    boardEl.style.height = '';
+    return;
+  }
+  const appEl = document.getElementById('app');
+  const headerEl = document.querySelector('header');
+  const consoleEl = document.querySelector('.console');
+  const appRect = appEl.getBoundingClientRect();
+  const appStyle = getComputedStyle(appEl);
+  const mainStyle = getComputedStyle(document.querySelector('main'));
+  const padX = parseFloat(appStyle.paddingLeft) + parseFloat(appStyle.paddingRight);
+  const padY = parseFloat(appStyle.paddingTop) + parseFloat(appStyle.paddingBottom);
+  const appGap = parseFloat(appStyle.rowGap || appStyle.gap) || 0;
+  const headerH = headerEl.getBoundingClientRect().height;
+
+  const outerAvailW = appRect.width - padX;
+  const outerAvailH = appRect.height - padY - headerH - appGap;
+
+  // Measure the console at its own intrinsic size (it never grows/shrinks,
+  // see flex:0 0 auto) before sizing the board off whatever space is left.
+  const consoleRect = consoleEl.getBoundingClientRect();
+
+  let availW, availH;
+  if(LANDSCAPE_SIDEBAR_QUERY.matches){
+    // Phone landscape: tray sits beside the board, so it eats width, not height.
+    const mainColGap = parseFloat(mainStyle.columnGap || mainStyle.gap) || 0;
+    availW = outerAvailW - consoleRect.width - mainColGap;
+    availH = outerAvailH;
+  } else {
+    const mainRowGap = parseFloat(mainStyle.rowGap || mainStyle.gap) || 0;
+    availW = outerAvailW;
+    availH = outerAvailH - consoleRect.height - mainRowGap;
+  }
+
+  const ratio = WORLD_W / WORLD_H;
+  let w = availW;
+  let h = w / ratio;
+  if (h > availH) { h = Math.max(80, availH); w = h * ratio; }
+
+  boardEl.style.width = Math.floor(w) + 'px';
+  boardEl.style.height = Math.floor(h) + 'px';
+}
+
 let pulseT = 0;
 
 function drawScene(){
@@ -800,9 +921,10 @@ function drawScene(){
     }
     if(isSel){
       const handle = rotateHandlePos(obj);
+      const handleR = Math.max(8, 15*worldPerPixel());
       thickLine(batchOpaque, obj.x,obj.y, handle.x,handle.y, 2, [1,1,1,0.5]);
-      circleTris(batchOpaque, handle.x, handle.y, 8, COL.handle);
-      circleTris(batchOpaque, handle.x, handle.y, 4, [0.1,0.1,0.15,1]);
+      circleTris(batchOpaque, handle.x, handle.y, handleR, COL.handle);
+      circleTris(batchOpaque, handle.x, handle.y, handleR*0.5, [0.1,0.1,0.15,1]);
     }
   });
 
@@ -908,27 +1030,22 @@ function renderLevelButtons(){
   });
 }
 
-function updateStatBadge(){
-  const el = document.getElementById('statBadge');
-  const lvl = currentLevel();
-  el.innerHTML = `Level ${state.levelIndex+1} / ${LEVELS.length}<br><b>${lvl.name}</b>`;
-}
-
 /* ============================== INPUT ============================== */
 const boardEl = document.getElementById('board');
 const floatToolbar = document.getElementById('floatToolbar');
 
 function hitTestPlaced(pt){
+  const tol = TOUCH_BODY_PX * worldPerPixel();
   for(let i=state.placed.length-1;i>=0;i--){
     const obj = state.placed[i];
     if(obj.type==='mirror'){
       const [a,b] = mirrorEndpoints(obj);
-      if(pointSegDist(pt,a,b) < 12) return obj;
+      if(pointSegDist(pt,a,b) < tol) return obj;
     } else if(obj.type==='prism'){
       const verts = prismVertices(obj);
       if(pointInPolygon(pt,verts)) return obj;
       for(let k=0;k<verts.length;k++){
-        if(pointSegDist(pt,verts[k],verts[(k+1)%verts.length])<10) return obj;
+        if(pointSegDist(pt,verts[k],verts[(k+1)%verts.length])<tol) return obj;
       }
     }
   }
@@ -971,7 +1088,8 @@ canvas.addEventListener('pointerdown', (e)=>{
     const sel = state.placed.find(o=>o.id===state.selectedId);
     if(sel){
       const handle = rotateHandlePos(sel);
-      if(V.len(V.sub(pt,handle)) < 14){
+      const handleTol = TOUCH_HANDLE_PX * worldPerPixel();
+      if(V.len(V.sub(pt,handle)) < handleTol){
         state.dragMode = 'rotate';
         return;
       }
@@ -1071,8 +1189,11 @@ if(usingGL){ initGL(); } else {
   console.warn('WebGL unavailable — falling back cannot render. Please use a browser with WebGL support.');
 }
 loadLevel(0);
+fitBoardMobile();
 requestAnimationFrame(frame);
-window.addEventListener('resize', resizeCanvas);
+window.addEventListener('resize', ()=>{ fitBoardMobile(); resizeCanvas(); });
+window.addEventListener('orientationchange', fitBoardMobile);
+MOBILE_QUERY.addEventListener('change', fitBoardMobile);
 
 /* debug hooks for automated testing */
 window.__PRISM_DEBUG__ = { state, LEVELS, traceBeam, currentLevel, loadLevel, V };
