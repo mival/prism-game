@@ -123,7 +123,7 @@
   .hint-badge{
     position:absolute;
     top:10px; left:10px;
-    max-width:62%;
+    max-width:46%;
     background:var(--panel-solid);
     backdrop-filter:blur(6px);
     border:1px solid var(--border);
@@ -135,6 +135,28 @@
     pointer-events:none;
   }
   .hint-badge b{ color:var(--text); }
+  .hint-row{
+    display:flex; align-items:center; gap:8px;
+    justify-content:space-between;
+  }
+  .hint-row b{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
+  .hint-toggle{
+    flex:0 0 auto;
+    pointer-events:auto;
+    width:20px; height:20px;
+    border-radius:6px;
+    border:1px solid var(--border);
+    background:transparent;
+    color:var(--muted);
+    font-size:11px;
+    line-height:1;
+    cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .hint-toggle:hover{ border-color:var(--accent); color:var(--text); }
+  .hint-body{ margin-top:4px; }
+  .hint-badge.collapsed .hint-body{ display:none; }
+  .hint-badge.collapsed{ max-width:none; }
 
   .rotate-hint{ display:none; }
 
@@ -271,7 +293,7 @@
       max-width:100%;
       max-height:100%;
     }
-    .hint-badge{ font-size:0.65rem; max-width:82%; padding:6px 9px; top:6px; left:6px; }
+    .hint-badge{ font-size:0.65rem; max-width:62%; padding:6px 9px; top:6px; left:6px; }
     .float-toolbar button{ width:40px; height:40px; font-size:16px; }
     .console{
       flex:0 0 auto;
@@ -310,7 +332,7 @@
     .piece-card .name{ display:none; }
     .piece-card .count{ font-size:0.68rem; margin-top:0; }
     button.ghost{ padding:6px 10px; font-size:0.72rem; }
-    .hint-badge{ max-width:62%; padding:4px 8px; font-size:0.6rem; line-height:1.25; }
+    .hint-badge{ max-width:50%; padding:4px 8px; font-size:0.6rem; line-height:1.25; }
   }
 
   /* Phone portrait: the board can only use the screen width, since a
@@ -336,7 +358,13 @@
     <div class="rotate-hint">🔄 Rotate your device to landscape for a bigger view</div>
     <div class="board" id="board">
       <canvas id="glcanvas"></canvas>
-      <div class="hint-badge" id="hintBadge"></div>
+      <div class="hint-badge" id="hintBadge">
+        <div class="hint-row">
+          <b id="hintTitle"></b>
+          <button class="hint-toggle" id="hintToggle" title="Show/hide instructions">▾</button>
+        </div>
+        <div class="hint-body" id="hintBody"></div>
+      </div>
       <div class="float-toolbar" id="floatToolbar">
         <button id="rotCCW" title="Rotate left">⟲</button>
         <button id="rotCW" title="Rotate right">⟳</button>
@@ -507,7 +535,10 @@ function loadLevel(idx){
   state.armed = null;
   state.solved = false;
   document.getElementById('winOverlay').classList.remove('show');
-  document.getElementById('hintBadge').innerHTML = `<b>Lvl ${idx+1} — ${lvl.name}</b><br>${lvl.hint}`;
+  document.getElementById('hintTitle').textContent = `Lvl ${idx+1} — ${lvl.name}`;
+  document.getElementById('hintBody').innerHTML = lvl.hint;
+  document.getElementById('hintBadge').classList.remove('collapsed');
+  document.getElementById('hintToggle').textContent = '▾';
   document.getElementById('nextBtn').style.display = (idx>=LEVELS.length-1) ? 'none' : 'inline-block';
   renderTray();
   renderLevelButtons();
@@ -1002,6 +1033,7 @@ function renderTray(){
     card.innerHTML = `<div class="ico">${d.icon}</div><div class="name">${d.label}</div><div class="count">x <b>${count}</b></div>`;
     card.addEventListener('click', ()=>{
       if(state.inventory[d.type]<=0) return;
+      collapseHint();
       state.armed = (state.armed===d.type) ? null : d.type;
       state.selectedId = null;
       document.getElementById('board').classList.toggle('armed', !!state.armed);
@@ -1059,9 +1091,18 @@ function clampToBounds(obj){
   obj.y = Math.max(margin, Math.min(WORLD_H-margin, obj.y));
 }
 
+function collapseHint(){
+  const badge = document.getElementById('hintBadge');
+  if(!badge.classList.contains('collapsed')){
+    badge.classList.add('collapsed');
+    document.getElementById('hintToggle').textContent = '▸';
+  }
+}
+
 let pointerDownWorld = null;
 
 canvas.addEventListener('pointerdown', (e)=>{
+  collapseHint();
   canvas.setPointerCapture(e.pointerId);
   const pt = screenToWorld(e.clientX, e.clientY);
   pointerDownWorld = pt;
@@ -1155,6 +1196,12 @@ document.getElementById('rotCW').addEventListener('click', ()=>{
   if(obj) obj.angle += Math.PI/12;
 });
 document.getElementById('delSel').addEventListener('click', removeSelected);
+
+document.getElementById('hintToggle').addEventListener('click', ()=>{
+  const badge = document.getElementById('hintBadge');
+  const collapsed = badge.classList.toggle('collapsed');
+  document.getElementById('hintToggle').textContent = collapsed ? '▸' : '▾';
+});
 
 document.getElementById('resetBtn').addEventListener('click', resetLevel);
 document.getElementById('replayBtn').addEventListener('click', ()=>{
