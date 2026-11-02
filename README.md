@@ -19,7 +19,7 @@ There are 8 levels. Progress is saved in the browser.
 
 Every color, font, radius and glow setting lives in `src/css/theme.css`. The page styles and the canvas renderer both read those CSS variables, so changing a value there changes the game. Dark is the default; light follows the system setting, and the ◐ button switches between auto, light and dark.
 
-To add a theme, copy the light block in `theme.css` under a new `:root[data-theme="..."]` selector and change the values. `--beam-blend: add` makes light glow on a dark board, and `over` paints it on a light one.
+To add a theme, copy the light block in `theme.css` under a new `:root[data-theme="..."]` selector, change the values, and add its name to `THEMES` in `src/js/main.js` so the theme button cycles to it. `--beam-blend: add` makes light glow on a dark board, and `over` paints it on a light one.
 
 ## Code
 
