@@ -6,68 +6,56 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
     />
-    <title>Prism &mdash; Light Refraction Puzzle</title>
+    <meta name="theme-color" content="#0a0c0f" />
+    <title>Prism</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500&display=swap"
+    />
     <link rel="stylesheet" href="src/css/style.css" />
   </head>
   <body>
     <div id="app">
-      <header>
-        <h1>PRISM<small>LIGHT &middot; REFRACTION &middot; MIRRORS</small></h1>
-        <div class="levels" id="levelButtons"></div>
+      <header class="top">
+        <div class="title">
+          <span class="eyebrow" id="levelNo">LEVEL 01</span>
+          <h1 id="levelName">First Light</h1>
+        </div>
+        <div class="meta">
+          <nav class="levels" id="levels" aria-label="Levels"></nav>
+          <div class="meta-row">
+            <span class="lit" id="lit">0 / 1 lit</span>
+            <button
+              class="icon-btn"
+              id="reset"
+              type="button"
+              aria-label="Reset level"
+              title="Reset level"
+            >
+              ↺
+            </button>
+          </div>
+        </div>
       </header>
 
-      <main>
-        <div class="rotate-hint">
-          🔄 Rotate your device to landscape for a bigger view
-        </div>
-        <div class="board" id="board">
-          <canvas id="glcanvas"></canvas>
-          <div class="float-toolbar" id="floatToolbar">
-            <button id="rotCCW" title="Rotate left">⟲</button>
-            <button id="rotCW" title="Rotate right">⟳</button>
-            <button id="delSel" class="danger" title="Remove">✕</button>
-          </div>
-          <div class="win-overlay" id="winOverlay">
-            <div class="win-card">
-              <h2 id="winTitle">Beam Locked On Target</h2>
-              <p id="winText">The laser reaches the receiver. Level solved.</p>
-              <div class="row">
-                <button class="ghost" id="replayBtn">Replay</button>
-                <button class="cta" id="nextBtn">Next Level →</button>
-              </div>
-            </div>
-          </div>
-        </div>
+      <div class="status" id="status" aria-live="polite">
+        <p id="statusText"></p>
+        <button class="next" id="next" type="button" hidden>
+          Next level →
+        </button>
+      </div>
 
-        <div class="console">
-          <div class="tray" id="tray"></div>
-          <div class="actions">
-            <button class="ghost" id="resetBtn">↺ Reset Level</button>
-          </div>
-          <div class="hint-badge" id="hintBadge">
-            <div class="hint-row">
-              <b id="hintTitle"></b>
-              <button
-                class="hint-toggle"
-                id="hintToggle"
-                title="Show/hide instructions"
-              >
-                ▾
-              </button>
-            </div>
-            <div class="hint-body" id="hintBody"></div>
-          </div>
-        </div>
-      </main>
+      <div class="stage" id="stage">
+        <canvas id="board" role="img" aria-label="Puzzle board"></canvas>
+      </div>
 
-      <footer>
-        Drag pieces from the tray onto the field. Click a placed piece to select
-        it — drag the outer ring to rotate, drag the body to move,
-        <kbd>Delete</kbd> to remove. Mirrors reflect the beam; prisms bend it by
-        45°. Guide the laser into the golden receiver.
-      </footer>
+      <div class="tray" id="tray" aria-label="Pieces"></div>
     </div>
 
+    <script src="src/js/logic.js"></script>
+    <script src="src/js/render.js"></script>
     <script src="src/js/main.js"></script>
   </body>
 </html>
