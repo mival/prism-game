@@ -2,7 +2,7 @@
 
 (function () {
   const L = window.PrismLogic;
-  const { Draw, Compositor, COLORS } = window.PrismRender;
+  const { Draw, Compositor, readTheme, theme } = window.PrismRender;
   const $ = (id) => document.getElementById(id);
 
   const el = {
@@ -17,9 +17,11 @@
     statusText: $("statusText"),
     next: $("next"),
     reset: $("reset"),
+    theme: $("theme"),
   };
 
   const DRAG_START_PX = 8;
+  const RETURN_LANE = 0.11;
   const reduceMotion = window.matchMedia(
     "(prefers-reduced-motion: reduce)",
   ).matches;
@@ -37,27 +39,67 @@
     armed: null,
     drag: null,
     result: null,
-    done: loadProgress(),
+    done: new Set(load("prism.done", [])),
     S: 1,
     baseDirty: true,
   };
 
   const level = () => L.LEVELS[state.level];
 
-  function loadProgress() {
+  function load(key, fallback) {
     try {
-      return new Set(JSON.parse(localStorage.getItem("prism.done") || "[]"));
+      const v = localStorage.getItem(key);
+      return v ? JSON.parse(v) : fallback;
     } catch (e) {
-      return new Set();
+      return fallback;
     }
   }
-  function saveProgress() {
+  function save(key, value) {
     try {
-      localStorage.setItem("prism.done", JSON.stringify([...state.done]));
+      localStorage.setItem(key, JSON.stringify(value));
     } catch (e) {
-      /* progress just won't persist */
+      /* settings just won't persist */
     }
   }
+
+  /* ------------------------------ theme ------------------------------ */
+
+  const THEMES = [
+    { id: "auto", icon: "◐", label: "auto" },
+    { id: "light", icon: "☀", label: "light" },
+    { id: "dark", icon: "☾", label: "dark" },
+  ];
+
+  function applyTheme() {
+    readTheme();
+    document.querySelector('meta[name="theme-color"]').content =
+      theme.themeColor;
+    const current = document.documentElement.dataset.theme || "auto";
+    const t = THEMES.find((x) => x.id === current);
+    el.theme.textContent = t.icon;
+    el.theme.title = `Theme: ${t.label}`;
+    el.theme.setAttribute("aria-label", `Theme: ${t.label}`);
+    renderTray();
+    state.baseDirty = true;
+  }
+
+  el.theme.addEventListener("click", () => {
+    const current = document.documentElement.dataset.theme || "auto";
+    const next =
+      THEMES[(THEMES.findIndex((x) => x.id === current) + 1) % THEMES.length]
+        .id;
+    if (next === "auto") delete document.documentElement.dataset.theme;
+    else document.documentElement.dataset.theme = next;
+    try {
+      localStorage.setItem("prism.theme", next);
+    } catch (e) {
+      /* theme just won't persist */
+    }
+    applyTheme();
+  });
+  window
+    .matchMedia("(prefers-color-scheme: dark)")
+    .addEventListener("change", applyTheme);
 
   /* ------------------------------ state ------------------------------ */
 
@@ -84,7 +126,7 @@
     );
     if (state.result.solved && !state.done.has(lv.id)) {
       state.done.add(lv.id);
-      saveProgress();
+      save("prism.done", [...state.done]);
     }
     renderStatus();
     renderTray();
@@ -130,22 +172,24 @@
       b.type = "button";
       b.textContent = i + 1;
       b.title = lv.name;
+      const solved = state.done.has(lv.id);
       b.setAttribute(
         "aria-label",
-        `Level ${i + 1}, ${lv.name}${state.done.has(lv.id) ? ", solved" : ""}`,
+        `Level ${i + 1}, ${lv.name}${solved ? ", solved" : ""}`,
       );
       if (i === state.level) b.setAttribute("aria-current", "true");
-      if (state.done.has(lv.id)) b.classList.add("done");
+      if (solved) b.classList.add("done");
       b.addEventListener("click", () => loadLevel(i));
       el.levels.appendChild(b);
     });
   }
 
-  function trayName(id) {
+  const trayName = (id) => {
     const [type, mask] = id.split(":");
-    if (type === "filter") return `${L.COLOR_NAMES[mask]} filter`;
-    return L.PIECES[type].label;
-  }
+    return type === "filter"
+      ? `${L.COLOR_NAMES[mask]} filter`
+      : L.PIECES[type].label;
+  };
 
   function renderTray() {
     el.tray.textContent = "";
@@ -163,16 +207,20 @@
       const icon = document.createElement("canvas");
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
       icon.width = icon.height = Math.round(44 * dpr);
-      const ictx = icon.getContext("2d");
       const p = L.pieceFromTrayId(id, 0, 0);
-      Draw.piece(ictx, p, icon.width / 2, icon.height / 2, icon.width * 0.95);
+      Draw.piece(
+        icon.getContext("2d"),
+        p,
+        icon.width / 2,
+        icon.height / 2,
+        icon.width * 0.95,
+      );
       chip.appendChild(icon);
 
       const name = document.createElement("span");
       name.className = "name";
-      name.textContent = id.startsWith("filter")
-        ? L.COLOR_NAMES[id.split(":")[1]]
-        : L.PIECES[p.type].label;
+      name.textContent =
+        p.type === "filter" ? L.COLOR_NAMES[p.color] : L.PIECES[p.type].label;
       chip.appendChild(name);
 
       const cnt = document.createElement("span");
@@ -202,24 +250,20 @@
 
   function layout() {
     const r = el.stage.getBoundingClientRect();
-    const cols = L.COLS,
-      rows = L.ROWS;
     let w = r.width,
-      h = (w * rows) / cols;
+      h = (w * L.ROWS) / L.COLS;
     if (h > r.height) {
       h = r.height;
-      w = (h * cols) / rows;
+      w = (h * L.COLS) / L.ROWS;
     }
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    const S = Math.max(8, Math.floor((w * dpr) / cols));
-    const W = S * cols,
-      H = S * rows;
+    const S = Math.max(8, Math.floor((w * dpr) / L.COLS));
     [el.board, base, light].forEach((c) => {
-      c.width = W;
-      c.height = H;
+      c.width = S * L.COLS;
+      c.height = S * L.ROWS;
     });
-    el.board.style.width = W / dpr + "px";
-    el.board.style.height = H / dpr + "px";
+    el.board.style.width = (S * L.COLS) / dpr + "px";
+    el.board.style.height = (S * L.ROWS) / dpr + "px";
     state.S = S;
     state.baseDirty = true;
   }
@@ -359,7 +403,6 @@
   /* ------------------------------ drawing ------------------------------ */
 
   const center = (v, S) => (v + 0.5) * S;
-  const RETURN_LANE = 0.11;
 
   function overlapsBackwards(a, b) {
     if (b.d !== (a.d + 4) % 8) return false;
@@ -391,20 +434,16 @@
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     Draw.board(ctx, S, L.COLS, L.ROWS);
 
-    const placing = state.armed || (state.drag && state.drag.active);
-    if (placing) {
+    if (state.armed || (state.drag && state.drag.active)) {
       for (let x = 0; x < L.COLS; x++)
         for (let y = 0; y < L.ROWS; y++)
           if (L.isFree(lv, state.pieces, x, y)) Draw.freeCell(ctx, x, y, S);
     }
 
     lv.walls.forEach(([x, y]) => Draw.wall(ctx, x, y, S));
-    Draw.source(
-      ctx,
-      center(lv.source.x, S),
-      center(lv.source.y, S),
-      lv.source.d,
-      S,
+    (lv.doors || []).forEach(([x, y, c]) => Draw.door(ctx, x, y, c, S));
+    lv.sources.forEach((s) =>
+      Draw.source(ctx, center(s.x, S), center(s.y, S), s.d, S),
     );
     lv.receivers.forEach((r) =>
       Draw.receiver(ctx, center(r.x, S), center(r.y, S), r.c, S),
@@ -455,12 +494,8 @@
       Draw.arrows(ctx, x0, y0, x1, y1, c, S, phase),
     );
 
-    Draw.sourceLight(
-      ctx,
-      center(lv.source.x, S),
-      center(lv.source.y, S),
-      lv.source.d,
-      S,
+    lv.sources.forEach((s) =>
+      Draw.sourceLight(ctx, center(s.x, S), center(s.y, S), s.d, s.c, S),
     );
     lv.receivers.forEach((r, i) =>
       Draw.receiverLight(
@@ -488,10 +523,12 @@
 
   /* ------------------------------ boot ------------------------------ */
 
+  readTheme();
   new ResizeObserver(layout).observe(el.stage);
   loadLevel(0);
+  applyTheme();
   layout();
   requestAnimationFrame(frame);
 
-  window.__prism = { state, L, accelerated: compositor.accelerated, COLORS };
+  window.__prism = { state, L, accelerated: compositor.accelerated, theme };
 })();

@@ -16,6 +16,10 @@
     [0, -1],
     [1, -1],
   ];
+  const E = 0,
+    S = 2,
+    W = 4,
+    N = 6;
 
   const R = 4,
     G = 2,
@@ -89,12 +93,14 @@
     return p;
   }
 
+  /* Level cells: sources {x, y, d, c}, receivers {x, y, c}, walls [x, y],
+     and glass doors [x, y, c]: walls that let only colour c through. */
   const LEVELS = [
     {
       id: "first-light",
       name: "First Light",
       hint: "Place the mirror where it turns the beam down into the receiver. Tap a placed piece to rotate it.",
-      source: { x: 0, y: 2, d: 0 },
+      sources: [{ x: 0, y: 2, d: E, c: WHITE }],
       receivers: [{ x: 4, y: 6, c: WHITE }],
       walls: [
         [5, 2],
@@ -108,7 +114,7 @@
       id: "spectrum",
       name: "Spectrum",
       hint: "A prism splits white light into red, green and blue. Each receiver lights only for its own color.",
-      source: { x: 0, y: 2, d: 0 },
+      sources: [{ x: 0, y: 2, d: E, c: WHITE }],
       receivers: [
         { x: 5, y: 0, c: R },
         { x: 6, y: 7, c: G },
@@ -124,10 +130,31 @@
       tray: { prism: 1, mirror: 2 },
     },
     {
+      id: "glass-doors",
+      name: "Glass Doors",
+      hint: "Colored glass walls let only their own color through. A splitter sends the beam two ways at once.",
+      sources: [{ x: 0, y: 4, d: E, c: WHITE }],
+      receivers: [
+        { x: 6, y: 4, c: R },
+        { x: 5, y: 0, c: G },
+      ],
+      walls: [
+        [1, 1],
+        [4, 6],
+        [1, 7],
+        [5, 8],
+      ],
+      doors: [
+        [4, 4, R],
+        [2, 2, G],
+      ],
+      tray: { splitter: 1, mirror: 1 },
+    },
+    {
       id: "recombine",
       name: "Recombine",
-      hint: "A splitter sends the beam two ways at once. Filters pass only the colors they show.",
-      source: { x: 0, y: 6, d: 0 },
+      hint: "Filters are glass you can place. They pass only the colors they show.",
+      sources: [{ x: 0, y: 6, d: E, c: WHITE }],
       receivers: [
         { x: 3, y: 0, c: R | G },
         { x: 6, y: 3, c: G | B },
@@ -142,32 +169,120 @@
       ],
       tray: { splitter: 1, mirror: 1, "filter:6": 1, "filter:3": 1 },
     },
+    {
+      id: "echo",
+      name: "Echo",
+      hint: "A mirror hit head-on sends light straight back. Watch the arrows: returning light can take a new path.",
+      sources: [{ x: 0, y: 4, d: E, c: WHITE }],
+      receivers: [
+        { x: 3, y: 0, c: WHITE },
+        { x: 3, y: 8, c: R },
+      ],
+      walls: [
+        [1, 2],
+        [5, 2],
+        [1, 6],
+        [5, 6],
+      ],
+      doors: [[3, 6, R]],
+      tray: { splitter: 1, mirror: 1 },
+    },
+    {
+      id: "magenta",
+      name: "Magenta",
+      hint: "Colors add up. Red and blue arriving at the same receiver make magenta.",
+      sources: [{ x: 0, y: 4, d: E, c: WHITE }],
+      receivers: [
+        { x: 5, y: 4, c: G },
+        { x: 6, y: 4, c: R | B },
+      ],
+      walls: [
+        [0, 0],
+        [6, 0],
+        [0, 8],
+        [6, 8],
+        [2, 1],
+        [2, 7],
+      ],
+      tray: { prism: 1, mirror: 2 },
+    },
+    {
+      id: "two-lasers",
+      name: "Two Lasers",
+      hint: "Two lasers, one receiver. A splitter also lets light through, so beams can share a path.",
+      sources: [
+        { x: 0, y: 2, d: E, c: R },
+        { x: 6, y: 6, d: W, c: B },
+      ],
+      receivers: [{ x: 3, y: 0, c: R | B }],
+      walls: [
+        [1, 0],
+        [5, 0],
+        [0, 4],
+        [6, 4],
+        [2, 8],
+        [4, 8],
+      ],
+      tray: { splitter: 1, mirror: 1 },
+    },
+    {
+      id: "daybreak",
+      name: "Daybreak",
+      hint: "Red, green and blue together make white. Send each one through its own glass door.",
+      sources: [{ x: 0, y: 8, d: E, c: WHITE }],
+      receivers: [{ x: 3, y: 0, c: WHITE }],
+      walls: [
+        [2, 0],
+        [4, 0],
+        [1, 6],
+        [5, 6],
+        [0, 5],
+        [6, 5],
+      ],
+      doors: [
+        [2, 1, R],
+        [3, 1, G],
+        [4, 1, B],
+      ],
+      tray: { prism: 1, mirror: 3 },
+    },
   ];
 
   const key = (x, y) => x + "," + y;
 
-  /* Follows every beam from the source. Each run is one straight stretch of
+  function levelCells(level) {
+    const cells = new Map();
+    level.walls.forEach(([x, y]) => cells.set(key(x, y), { kind: "wall" }));
+    (level.doors || []).forEach(([x, y, c]) =>
+      cells.set(key(x, y), { kind: "door", c }),
+    );
+    level.receivers.forEach((r, i) =>
+      cells.set(key(r.x, r.y), { kind: "receiver", i }),
+    );
+    level.sources.forEach((s) => cells.set(key(s.x, s.y), { kind: "source" }));
+    return cells;
+  }
+
+  /* Follows every beam from every source. Each run is one straight stretch of
      light, from where it starts to where it stops or turns, with its colour and
      direction; a beam sent back the way it came shows up as a second run on the
      same line with the opposite direction. */
   function trace(level, pieces) {
-    const cells = new Map();
-    level.walls.forEach(([x, y]) => cells.set(key(x, y), { kind: "wall" }));
-    level.receivers.forEach((r, i) =>
-      cells.set(key(r.x, r.y), { kind: "receiver", i }),
-    );
-    cells.set(key(level.source.x, level.source.y), { kind: "source" });
+    const cells = levelCells(level);
     pieces.forEach((p) => cells.set(key(p.x, p.y), { kind: "piece", p }));
 
     const hits = level.receivers.map(() => 0);
     const runs = [];
     const seen = new Set();
-    const queue = [
-      { x: level.source.x, y: level.source.y, d: level.source.d, c: WHITE },
-    ];
+    const queue = level.sources.map((s) => ({
+      x: s.x,
+      y: s.y,
+      d: s.d,
+      c: s.c,
+    }));
     let guard = 0;
 
-    while (queue.length && guard++ < 500) {
+    while (queue.length && guard++ < 800) {
       const b = queue.shift();
       const id = b.x + "," + b.y + "," + b.d + "," + b.c;
       if (seen.has(id)) continue;
@@ -179,7 +294,7 @@
       for (;;) {
         const nx = x + dx,
           ny = y + dy;
-        if (nx < 0 || ny < 0 || nx >= COLS || ny >= ROWS) {
+        const stopAtEdge = () =>
           runs.push({
             x0: b.x,
             y0: b.y,
@@ -188,6 +303,8 @@
             c: b.c,
             d: b.d,
           });
+        if (nx < 0 || ny < 0 || nx >= COLS || ny >= ROWS) {
+          stopAtEdge();
           break;
         }
         const cell = cells.get(key(nx, ny));
@@ -196,19 +313,14 @@
           y = ny;
           continue;
         }
-        if (cell.kind === "wall") {
-          runs.push({
-            x0: b.x,
-            y0: b.y,
-            x1: x + dx / 2,
-            y1: y + dy / 2,
-            c: b.c,
-            d: b.d,
-          });
+        if (cell.kind === "wall" || (cell.kind === "door" && !(b.c & cell.c))) {
+          stopAtEdge();
           break;
         }
         runs.push({ x0: b.x, y0: b.y, x1: nx, y1: ny, c: b.c, d: b.d });
         if (cell.kind === "receiver") hits[cell.i] |= b.c;
+        if (cell.kind === "door")
+          queue.push({ x: nx, y: ny, d: b.d, c: b.c & cell.c });
         if (cell.kind === "piece") {
           PIECES[cell.p.type]
             .out(cell.p, b.d, b.c)
@@ -224,9 +336,7 @@
 
   function isFree(level, pieces, x, y) {
     if (x < 0 || y < 0 || x >= COLS || y >= ROWS) return false;
-    if (level.source.x === x && level.source.y === y) return false;
-    if (level.walls.some(([wx, wy]) => wx === x && wy === y)) return false;
-    if (level.receivers.some((r) => r.x === x && r.y === y)) return false;
+    if (levelCells(level).has(key(x, y))) return false;
     return !pieces.some((p) => p.x === x && p.y === y);
   }
 
