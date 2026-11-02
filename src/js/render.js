@@ -1,20 +1,69 @@
 "use strict";
 
-/* Darkroom look. Pieces are drawn with Canvas 2D onto two layers: "base"
-   (matte hardware) and "light" (beams, arrows, lit receivers). WebGL then
-   composites them and adds a GPU bloom pass to the light layer. */
+/* Pieces are drawn with Canvas 2D onto two layers: "base" (hardware) and
+   "light" (beams, arrows, lit receivers). WebGL then composites them and adds
+   a GPU bloom pass to the light layer. Every color comes from the CSS
+   variables in src/css/theme.css; call readTheme() after the theme changes. */
 (function (root) {
-  const COLORS = {
-    7: "#fff6e4",
-    4: "#ff3b4e",
-    2: "#3dff8a",
-    1: "#3d7bff",
-    6: "#ffd23d",
-    3: "#3de8ff",
-    5: "#d34dff",
+  const T = {};
+  const COLORS = {};
+  const MASK_TOKENS = {
+    7: "--beam-white",
+    4: "--beam-red",
+    2: "--beam-green",
+    1: "--beam-blue",
+    6: "--beam-yellow",
+    3: "--beam-cyan",
+    5: "--beam-magenta",
   };
-  const BOARD = "#0f1318";
-  const DOT = "#26303b";
+  const TOKENS = [
+    "board",
+    "board-dot",
+    "cell-hint",
+    "target-ok",
+    "target-bad",
+    "wall",
+    "wall-edge",
+    "source-body",
+    "source-edge",
+    "source-nozzle",
+    "source-led",
+    "receiver-socket",
+    "receiver-core",
+    "mirror-back",
+    "mirror-face",
+    "splitter-glass",
+    "splitter-edge",
+    "splitter-dash",
+    "prism-glass",
+    "prism-edge",
+    "filter-glare",
+    "beam-core",
+    "beam-arrow",
+    "beam-arrow-on-white",
+    "beam-blend",
+    "theme-color",
+  ];
+  const NUMBERS = [
+    "door-alpha",
+    "receiver-idle-alpha",
+    "beam-glow",
+    "bloom-strength",
+  ];
+
+  const camel = (s) => s.replace(/-(\w)/g, (_, c) => c.toUpperCase());
+
+  function readTheme() {
+    const cs = getComputedStyle(document.documentElement);
+    const get = (name) => cs.getPropertyValue("--" + name).trim();
+    TOKENS.forEach((t) => (T[camel(t)] = get(t)));
+    NUMBERS.forEach((t) => (T[camel(t)] = parseFloat(get(t)) || 0));
+    Object.entries(MASK_TOKENS).forEach(
+      ([m, v]) => (COLORS[m] = cs.getPropertyValue(v).trim()),
+    );
+    T.additive = T.beamBlend !== "over";
+    return T;
+  }
 
   function rr(ctx, x, y, w, h, r) {
     ctx.beginPath();
@@ -24,9 +73,9 @@
 
   const Draw = {
     board(ctx, S, cols, rows) {
-      ctx.fillStyle = BOARD;
+      ctx.fillStyle = T.board;
       ctx.fillRect(0, 0, cols * S, rows * S);
-      ctx.fillStyle = DOT;
+      ctx.fillStyle = T.boardDot;
       const d = Math.max(1, S * 0.045);
       for (let i = 1; i < cols; i++)
         for (let j = 1; j < rows; j++)
@@ -35,24 +84,54 @@
 
     freeCell(ctx, x, y, S) {
       rr(ctx, x * S + S * 0.12, y * S + S * 0.12, S * 0.76, S * 0.76, S * 0.14);
-      ctx.strokeStyle = "rgba(147,163,184,0.22)";
+      ctx.strokeStyle = T.cellHint;
       ctx.lineWidth = Math.max(1, S * 0.02);
       ctx.stroke();
     },
 
     target(ctx, x, y, S, ok) {
       rr(ctx, x * S + S * 0.06, y * S + S * 0.06, S * 0.88, S * 0.88, S * 0.16);
-      ctx.strokeStyle = ok ? "rgba(200,220,255,0.75)" : "rgba(255,90,90,0.6)";
+      ctx.strokeStyle = ok ? T.targetOk : T.targetBad;
       ctx.lineWidth = Math.max(1.5, S * 0.035);
       ctx.stroke();
     },
 
     wall(ctx, x, y, S) {
       rr(ctx, x * S + S * 0.08, y * S + S * 0.08, S * 0.84, S * 0.84, S * 0.15);
-      ctx.fillStyle = "#1b2129";
+      ctx.fillStyle = T.wall;
       ctx.fill();
-      ctx.strokeStyle = "#2c3540";
+      ctx.strokeStyle = T.wallEdge;
       ctx.lineWidth = Math.max(1, S * 0.02);
+      ctx.stroke();
+    },
+
+    /* A wall of coloured glass: same footprint as a wall, tinted, with
+       vertical panes so it doesn't read as a placeable filter. */
+    door(ctx, x, y, c, S) {
+      const x0 = x * S + S * 0.08,
+        y0 = y * S + S * 0.08,
+        w = S * 0.84;
+      rr(ctx, x0, y0, w, w, S * 0.15);
+      ctx.fillStyle = T.wall;
+      ctx.fill();
+      ctx.save();
+      ctx.clip();
+      ctx.globalAlpha = T.doorAlpha * 2;
+      ctx.fillStyle = COLORS[c];
+      ctx.fillRect(x0, y0, w, w);
+      ctx.globalAlpha = 0.55;
+      ctx.strokeStyle = COLORS[c];
+      ctx.lineWidth = Math.max(1, S * 0.025);
+      for (let i = 1; i < 4; i++) {
+        ctx.beginPath();
+        ctx.moveTo(x0 + (w * i) / 4, y0);
+        ctx.lineTo(x0 + (w * i) / 4, y0 + w);
+        ctx.stroke();
+      }
+      ctx.restore();
+      rr(ctx, x0, y0, w, w, S * 0.15);
+      ctx.strokeStyle = COLORS[c];
+      ctx.lineWidth = Math.max(1.5, S * 0.04);
       ctx.stroke();
     },
 
@@ -61,38 +140,39 @@
       ctx.translate(cx, cy);
       ctx.rotate((d * Math.PI) / 4);
       rr(ctx, -S * 0.38, -S * 0.25, S * 0.64, S * 0.5, S * 0.12);
-      ctx.fillStyle = "#1e252e";
+      ctx.fillStyle = T.sourceBody;
       ctx.fill();
-      ctx.strokeStyle = "#3a4552";
+      ctx.strokeStyle = T.sourceEdge;
       ctx.lineWidth = Math.max(1, S * 0.02);
       ctx.stroke();
-      ctx.fillStyle = "#2c3540";
+      ctx.fillStyle = T.sourceNozzle;
       ctx.fillRect(S * 0.26, -S * 0.1, S * 0.16, S * 0.2);
       ctx.restore();
     },
 
-    sourceLight(ctx, cx, cy, d, S) {
-      const [dx, dy] = [
-        Math.cos((d * Math.PI) / 4),
-        Math.sin((d * Math.PI) / 4),
-      ];
-      const lx = cx - dx * S * 0.2,
-        ly = cy - dy * S * 0.2;
+    sourceLight(ctx, cx, cy, d, c, S) {
+      const a = (d * Math.PI) / 4;
       ctx.beginPath();
-      ctx.arc(lx, ly, S * 0.06, 0, Math.PI * 2);
-      ctx.fillStyle = "#ff3b4e";
+      ctx.arc(
+        cx - Math.cos(a) * S * 0.2,
+        cy - Math.sin(a) * S * 0.2,
+        S * 0.06,
+        0,
+        Math.PI * 2,
+      );
+      ctx.fillStyle = c === 7 ? T.sourceLed : COLORS[c];
       ctx.fill();
     },
 
     receiver(ctx, cx, cy, c, S) {
       ctx.beginPath();
       ctx.arc(cx, cy, S * 0.36, 0, Math.PI * 2);
-      ctx.fillStyle = "#0b0e12";
+      ctx.fillStyle = T.receiverSocket;
       ctx.fill();
       ctx.beginPath();
       ctx.arc(cx, cy, S * 0.3, 0, Math.PI * 2);
       ctx.strokeStyle = COLORS[c];
-      ctx.globalAlpha = 0.4;
+      ctx.globalAlpha = T.receiverIdleAlpha;
       ctx.lineWidth = S * 0.065;
       ctx.stroke();
       ctx.globalAlpha = 1;
@@ -104,7 +184,7 @@
         const g = ctx.createRadialGradient(cx, cy, 1, cx, cy, S * 0.62);
         g.addColorStop(0, COLORS[need]);
         g.addColorStop(1, "rgba(0,0,0,0)");
-        ctx.globalAlpha = 0.45 * pulse;
+        ctx.globalAlpha = 0.45 * pulse * T.beamGlow;
         ctx.fillStyle = g;
         ctx.beginPath();
         ctx.arc(cx, cy, S * 0.62, 0, Math.PI * 2);
@@ -117,13 +197,13 @@
         ctx.stroke();
         ctx.beginPath();
         ctx.arc(cx, cy, S * 0.13, 0, Math.PI * 2);
-        ctx.fillStyle = "#ffffff";
+        ctx.fillStyle = T.receiverCore;
         ctx.fill();
       } else if (got) {
         // Light is arriving but it is the wrong colour: show what arrives.
         ctx.beginPath();
         ctx.arc(cx, cy, S * 0.1, 0, Math.PI * 2);
-        ctx.fillStyle = COLORS[got] || "#ffffff";
+        ctx.fillStyle = COLORS[got];
         ctx.fill();
       }
     },
@@ -133,14 +213,14 @@
       ctx.translate(cx, cy);
       ctx.rotate((k * Math.PI) / 8);
       rr(ctx, -S * 0.42, -S * 0.085, S * 0.84, S * 0.17, S * 0.06);
-      ctx.fillStyle = "#4a5563";
+      ctx.fillStyle = T.mirrorBack;
       ctx.fill();
       rr(ctx, -S * 0.4, -S * 0.032, S * 0.8, S * 0.064, S * 0.03);
-      ctx.fillStyle = "#e8eef5";
+      ctx.fillStyle = T.mirrorFace;
       ctx.fill();
       ctx.beginPath();
       ctx.arc(0, 0, S * 0.05, 0, Math.PI * 2);
-      ctx.fillStyle = BOARD;
+      ctx.fillStyle = T.board;
       ctx.fill();
       ctx.restore();
     },
@@ -150,13 +230,13 @@
       ctx.translate(cx, cy);
       ctx.rotate((k * Math.PI) / 8);
       rr(ctx, -S * 0.42, -S * 0.07, S * 0.84, S * 0.14, S * 0.05);
-      ctx.fillStyle = "rgba(170,210,255,0.14)";
+      ctx.fillStyle = T.splitterGlass;
       ctx.fill();
-      ctx.strokeStyle = "#7d8a99";
+      ctx.strokeStyle = T.splitterEdge;
       ctx.lineWidth = Math.max(1, S * 0.022);
       ctx.stroke();
       ctx.setLineDash([S * 0.08, S * 0.06]);
-      ctx.strokeStyle = "#e8eef5";
+      ctx.strokeStyle = T.splitterDash;
       ctx.lineWidth = Math.max(1, S * 0.04);
       ctx.beginPath();
       ctx.moveTo(-S * 0.36, 0);
@@ -177,9 +257,9 @@
       ctx.beginPath();
       p.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
       ctx.closePath();
-      ctx.fillStyle = "rgba(170,210,255,0.10)";
+      ctx.fillStyle = T.prismGlass;
       ctx.fill();
-      ctx.strokeStyle = "rgba(200,230,255,0.9)";
+      ctx.strokeStyle = T.prismEdge;
       ctx.lineWidth = Math.max(1, S * 0.03);
       ctx.stroke();
       const g = ctx.createLinearGradient(p[0][0], p[0][1], p[2][0], p[2][1]);
@@ -204,7 +284,7 @@
       ctx.strokeStyle = COLORS[color];
       ctx.lineWidth = Math.max(1.5, S * 0.04);
       ctx.stroke();
-      ctx.strokeStyle = "rgba(255,255,255,0.35)";
+      ctx.strokeStyle = T.filterGlare;
       ctx.lineWidth = Math.max(1, S * 0.02);
       ctx.beginPath();
       ctx.moveTo(cx - S * 0.18, cy - S * 0.18);
@@ -227,7 +307,7 @@
         [S * 0.05, 0.75],
       ];
       for (const [w, a] of layers) {
-        ctx.globalAlpha = a;
+        ctx.globalAlpha = Math.min(1, a * (w > S * 0.06 ? T.beamGlow : 1));
         ctx.strokeStyle = COLORS[c];
         ctx.lineWidth = w;
         ctx.beginPath();
@@ -236,7 +316,7 @@
         ctx.stroke();
       }
       ctx.globalAlpha = 0.9;
-      ctx.strokeStyle = "#ffffff";
+      ctx.strokeStyle = T.beamCore;
       ctx.lineWidth = Math.max(1, S * 0.018);
       ctx.beginPath();
       ctx.moveTo(x0, y0);
@@ -246,7 +326,7 @@
     },
 
     /* Chevrons travel along the beam in the direction the light moves, so a
-       beam bounced straight back reads as arrows going both ways on one line. */
+       beam bounced straight back reads as arrows going both ways. */
     arrows(ctx, x0, y0, x1, y1, c, S, phase) {
       const len = Math.hypot(x1 - x0, y1 - y0);
       if (len < S * 0.5) return;
@@ -256,6 +336,9 @@
       const a = S * 0.13;
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
+      const arrow = c === 7 ? T.beamArrowOnWhite : T.beamArrow;
+      ctx.strokeStyle = arrow === "beam" ? COLORS[c] : arrow;
+      ctx.lineWidth = Math.max(1.2, S * 0.035);
       for (
         let s = ((phase * gap) % gap) + S * 0.3;
         s < len - S * 0.25;
@@ -263,10 +346,8 @@
       ) {
         const px = x0 + ux * s,
           py = y0 + uy * s;
-        const fade = Math.min(1, s / (S * 0.6), (len - s) / (S * 0.6));
-        ctx.globalAlpha = 0.95 * fade;
-        ctx.strokeStyle = c === 7 ? "#ffd9a8" : "#ffffff";
-        ctx.lineWidth = Math.max(1.2, S * 0.035);
+        ctx.globalAlpha =
+          0.95 * Math.min(1, s / (S * 0.6), (len - s) / (S * 0.6));
         ctx.beginPath();
         ctx.moveTo(px - ux * a - uy * a, py - uy * a + ux * a);
         ctx.lineTo(px, py);
@@ -296,6 +377,9 @@
       c += texture2D(t, uv - dir * 3.231).rgb * 0.070;
       gl_FragColor = vec4(c, 1.0);
     }`;
+  /* additive: light glows on a dark board. over: the light layer is painted on
+     top and the bloom tints the board towards the beam's colour instead of
+     brightening it, which would wash out on a light board. */
   const FINAL_FS = `
     precision mediump float;
     varying vec2 uv;
@@ -303,8 +387,20 @@
     uniform sampler2D light;
     uniform sampler2D bloom;
     uniform float strength;
+    uniform float additive;
     void main(){
-      vec3 c = texture2D(base, uv).rgb + texture2D(light, uv).rgb + texture2D(bloom, uv).rgb * strength;
+      vec3 b = texture2D(base, uv).rgb;
+      vec4 l = texture2D(light, uv);
+      vec3 bl = texture2D(bloom, uv).rgb;
+      vec3 c;
+      if (additive > 0.5) {
+        c = b + l.rgb + bl * strength;
+      } else {
+        c = b * (1.0 - l.a) + l.rgb;
+        float peak = max(bl.r, max(bl.g, bl.b));
+        vec3 tint = bl / max(peak, 0.001);
+        c = mix(c, c * tint, clamp(peak * strength, 0.0, 0.6));
+      }
       gl_FragColor = vec4(min(c, vec3(1.0)), 1.0);
     }`;
 
@@ -465,9 +561,11 @@
         ctx.globalCompositeOperation = "source-over";
         ctx.filter = "none";
         ctx.drawImage(base, 0, 0);
-        ctx.globalCompositeOperation = "lighter";
+        ctx.globalCompositeOperation = T.additive ? "lighter" : "source-over";
+        ctx.globalAlpha = T.additive ? 1 : 0.35;
         ctx.filter = `blur(${Math.round(W / 60)}px)`;
         ctx.drawImage(light, 0, 0);
+        ctx.globalAlpha = 1;
         ctx.filter = "none";
         ctx.drawImage(light, 0, 0);
         ctx.globalCompositeOperation = "source-over";
@@ -497,10 +595,11 @@
       gl.uniform1i(gl.getUniformLocation(p, "base"), 0);
       gl.uniform1i(gl.getUniformLocation(p, "light"), 1);
       gl.uniform1i(gl.getUniformLocation(p, "bloom"), 2);
-      gl.uniform1f(gl.getUniformLocation(p, "strength"), 1.25);
+      gl.uniform1f(gl.getUniformLocation(p, "strength"), T.bloomStrength);
+      gl.uniform1f(gl.getUniformLocation(p, "additive"), T.additive ? 1 : 0);
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     }
   }
 
-  root.PrismRender = { COLORS, Draw, Compositor };
+  root.PrismRender = { COLORS, Draw, Compositor, readTheme, theme: T };
 })(window);

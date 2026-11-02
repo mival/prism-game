@@ -8,12 +8,20 @@
     />
     <meta name="theme-color" content="#0a0c0f" />
     <title>Prism</title>
+    <script>
+      try {
+        var saved = localStorage.getItem("prism.theme");
+        if (saved === "light" || saved === "dark")
+          document.documentElement.dataset.theme = saved;
+      } catch (e) {}
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500&display=swap"
     />
+    <link rel="stylesheet" href="src/css/theme.css" />
     <link rel="stylesheet" href="src/css/style.css" />
   </head>
   <body>
@@ -24,21 +32,29 @@
           <h1 id="levelName">First Light</h1>
         </div>
         <div class="meta">
-          <nav class="levels" id="levels" aria-label="Levels"></nav>
-          <div class="meta-row">
-            <span class="lit" id="lit">0 / 1 lit</span>
-            <button
-              class="icon-btn"
-              id="reset"
-              type="button"
-              aria-label="Reset level"
-              title="Reset level"
-            >
-              ↺
-            </button>
-          </div>
+          <span class="lit" id="lit">0 / 1 lit</span>
+          <button
+            class="icon-btn"
+            id="reset"
+            type="button"
+            aria-label="Reset level"
+            title="Reset level"
+          >
+            ↺
+          </button>
+          <button
+            class="icon-btn"
+            id="theme"
+            type="button"
+            aria-label="Theme: auto"
+            title="Theme: auto"
+          >
+            ◐
+          </button>
         </div>
       </header>
+
+      <nav class="levels" id="levels" aria-label="Levels"></nav>
 
       <div class="status" id="status" aria-live="polite">
         <p id="statusText"></p>
