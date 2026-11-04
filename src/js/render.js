@@ -208,6 +208,23 @@
       }
     },
 
+    /* Ring that fills while a solution is held; full once the level counts. */
+    receiverCharge(ctx, cx, cy, c, progress, S) {
+      const r = S * 0.46;
+      ctx.lineCap = "round";
+      ctx.lineWidth = Math.max(2, S * 0.065);
+      ctx.strokeStyle = COLORS[c];
+      ctx.globalAlpha = 0.22;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.globalAlpha = 0.95;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * progress);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    },
+
     mirror(ctx, cx, cy, k, S) {
       ctx.save();
       ctx.translate(cx, cy);

@@ -102,11 +102,11 @@ h1 {
 /* ------------------------------ levels ------------------------------ */
 .levels {
   grid-area: levels;
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 4px;
 }
 .levels button {
-  flex: 1 1 0;
   min-width: 0;
   height: 30px;
   border-radius: 6px;

@@ -21,6 +21,10 @@
   };
 
   const DRAG_START_PX = 8;
+  /* A level only counts as finished once its solution has stayed correct
+     this long, so tapping pieces at random can't finish it by passing
+     through a solved state on the way to the next rotation. */
+  const SOLVE_HOLD_MS = 1500;
   const RETURN_LANE = 0.11;
   const reduceMotion = window.matchMedia(
     "(prefers-reduced-motion: reduce)",
@@ -39,6 +43,8 @@
     armed: null,
     drag: null,
     result: null,
+    holdSince: null,
+    confirmed: false,
     done: new Set(load("prism.done", [])),
     S: 1,
     baseDirty: true,
@@ -119,19 +125,30 @@
     state.result = L.trace(lv, state.pieces);
     const n = state.result.lit.filter(Boolean).length;
     el.lit.textContent = `${n} / ${lv.receivers.length} lit`;
-    el.lit.classList.toggle("all", state.result.solved);
+    state.holdSince = state.result.solved ? performance.now() : null;
+    state.confirmed = false;
+    el.lit.classList.remove("all");
     el.board.setAttribute(
       "aria-label",
       `Puzzle board, ${n} of ${lv.receivers.length} receivers lit`,
     );
-    if (state.result.solved && !state.done.has(lv.id)) {
-      state.done.add(lv.id);
-      save("prism.done", [...state.done]);
-    }
     renderStatus();
     renderTray();
     renderLevels();
     state.baseDirty = true;
+  }
+
+  function confirmSolved() {
+    const lv = level();
+    state.confirmed = true;
+    state.holdSince = null;
+    el.lit.classList.add("all");
+    if (!state.done.has(lv.id)) {
+      state.done.add(lv.id);
+      save("prism.done", [...state.done]);
+    }
+    renderStatus();
+    renderLevels();
   }
 
   function place(trayId, x, y) {
@@ -155,14 +172,18 @@
 
   function renderStatus() {
     const last = state.level === L.LEVELS.length - 1;
-    const solved = state.result.solved;
-    el.status.classList.toggle("win", solved);
-    el.statusText.textContent = solved
+    const won = state.confirmed;
+    const holding = state.result.solved && !won;
+    el.status.classList.toggle("win", won);
+    el.status.classList.toggle("holding", holding);
+    el.statusText.textContent = won
       ? last
-        ? "All receivers lit. That was the last level."
-        : "All receivers lit."
-      : level().hint;
-    el.next.hidden = !solved || last;
+        ? "Level complete. That was the last one."
+        : "Level complete."
+      : holding
+        ? "All receivers lit. Keep it like this to finish the level."
+        : level().hint;
+    el.next.hidden = !won || last;
   }
 
   function renderLevels() {
@@ -497,6 +518,22 @@
     lv.sources.forEach((s) =>
       Draw.sourceLight(ctx, center(s.x, S), center(s.y, S), s.d, s.c, S),
     );
+    const charge = state.confirmed
+      ? 1
+      : state.holdSince !== null && !(state.drag && state.drag.active)
+        ? Math.min(1, (t - state.holdSince) / SOLVE_HOLD_MS)
+        : 0;
+    if (charge > 0)
+      lv.receivers.forEach((r) =>
+        Draw.receiverCharge(
+          ctx,
+          center(r.x, S),
+          center(r.y, S),
+          r.c,
+          charge,
+          S,
+        ),
+      );
     lv.receivers.forEach((r, i) =>
       Draw.receiverLight(
         ctx,
@@ -513,6 +550,13 @@
   }
 
   function frame(t) {
+    if (
+      state.holdSince !== null &&
+      !state.confirmed &&
+      !(state.drag && state.drag.active) &&
+      t - state.holdSince >= SOLVE_HOLD_MS
+    )
+      confirmSolved();
     const baseDirty = state.baseDirty;
     if (baseDirty) drawBase();
     drawLight(t);
