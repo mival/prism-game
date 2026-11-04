@@ -13,7 +13,7 @@ Play it at https://mival.github.io/prism-game/
 - A prism splits white light into red, green and blue. Each receiver lights only when the color it shows arrives, and colors that arrive together add up (red + blue = magenta, all three = white).
 - Colored glass walls let only their own color through. Filters work the same way but are pieces you place.
 
-There are 13 levels. A level counts as finished once its solution has stayed correct for a moment; the rings around the receivers fill up while that happens. Progress is saved in the browser.
+There are 13 levels. From level 3 on, the tray also holds decoy pieces that no solution uses. A level counts as finished once its solution has stayed correct for a moment; the rings around the receivers fill up while that happens. Progress is saved in the browser.
 
 ## Themes
 

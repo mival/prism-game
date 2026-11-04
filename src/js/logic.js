@@ -132,7 +132,7 @@
     {
       id: "glass-doors",
       name: "Glass Doors",
-      hint: "Colored glass walls let only their own color through. A splitter sends the beam two ways at once.",
+      hint: "Colored glass walls let only their own color through. A splitter sends the beam two ways at once. From here on, not every piece in the tray is needed.",
       sources: [{ x: 0, y: 4, d: E, c: WHITE }],
       receivers: [
         { x: 6, y: 4, c: R },
@@ -148,7 +148,7 @@
         [4, 4, R],
         [2, 2, G],
       ],
-      tray: { splitter: 1, mirror: 1 },
+      tray: { splitter: 1, mirror: 2, "filter:4": 1 },
     },
     {
       id: "recombine",
@@ -167,7 +167,14 @@
         [4, 4],
         [5, 7],
       ],
-      tray: { splitter: 1, mirror: 1, "filter:6": 1, "filter:3": 1 },
+      tray: {
+        splitter: 1,
+        mirror: 1,
+        prism: 1,
+        "filter:6": 1,
+        "filter:3": 1,
+        "filter:5": 1,
+      },
     },
     {
       id: "echo",
@@ -179,13 +186,14 @@
         { x: 3, y: 8, c: R },
       ],
       walls: [
+        [5, 4],
         [1, 2],
         [5, 2],
         [1, 6],
         [5, 6],
       ],
       doors: [[3, 6, R]],
-      tray: { splitter: 1, mirror: 1 },
+      tray: { splitter: 1, mirror: 2, prism: 1 },
     },
     {
       id: "three-ways",
@@ -205,7 +213,7 @@
         [1, 2],
         [5, 6],
       ],
-      tray: { splitter: 2 },
+      tray: { splitter: 3, mirror: 1 },
     },
     {
       id: "magenta",
@@ -217,6 +225,7 @@
         { x: 6, y: 4, c: R | B },
       ],
       walls: [
+        [5, 3],
         [0, 0],
         [6, 0],
         [0, 8],
@@ -224,7 +233,7 @@
         [2, 1],
         [2, 7],
       ],
-      tray: { prism: 1, mirror: 2 },
+      tray: { prism: 1, mirror: 3, "filter:5": 1 },
     },
     {
       id: "detour",
@@ -233,6 +242,7 @@
       sources: [{ x: 0, y: 1, d: E, c: WHITE }],
       receivers: [{ x: 6, y: 7, c: WHITE }],
       walls: [
+        [0, 5],
         [1, 4],
         [2, 4],
         [3, 4],
@@ -243,7 +253,7 @@
         [3, 6],
         [5, 8],
       ],
-      tray: { mirror: 3 },
+      tray: { mirror: 4, prism: 1 },
     },
     {
       id: "two-lasers",
@@ -255,6 +265,7 @@
       ],
       receivers: [{ x: 3, y: 0, c: R | B }],
       walls: [
+        [2, 2],
         [1, 0],
         [5, 0],
         [0, 4],
@@ -262,7 +273,7 @@
         [2, 8],
         [4, 8],
       ],
-      tray: { splitter: 1, mirror: 1 },
+      tray: { splitter: 1, mirror: 1, "filter:5": 1, "filter:4": 1 },
     },
     {
       id: "mirror-image",
@@ -281,7 +292,7 @@
         [4, 8],
         [1, 6],
       ],
-      tray: { prism: 1, mirror: 1 },
+      tray: { prism: 2, mirror: 2 },
     },
     {
       id: "crossroads",
@@ -293,13 +304,14 @@
       ],
       receivers: [{ x: 6, y: 0, c: R | G }],
       walls: [
+        [4, 2],
         [0, 5],
         [6, 5],
         [1, 7],
         [5, 7],
         [1, 0],
       ],
-      tray: { splitter: 1, mirror: 1 },
+      tray: { splitter: 1, mirror: 1, "filter:6": 1, "filter:2": 1 },
     },
     {
       id: "rainbow",
@@ -313,13 +325,15 @@
         { x: 5, y: 8, c: WHITE },
       ],
       walls: [
+        [5, 7],
+        [1, 5],
         [0, 0],
         [3, 0],
         [0, 8],
         [3, 6],
         [4, 2],
       ],
-      tray: { splitter: 1, prism: 1, mirror: 1 },
+      tray: { splitter: 1, prism: 2, mirror: 2 },
     },
     {
       id: "daybreak",
@@ -340,7 +354,7 @@
         [3, 1, G],
         [4, 1, B],
       ],
-      tray: { prism: 1, mirror: 3 },
+      tray: { prism: 2, mirror: 4 },
     },
   ];
 
