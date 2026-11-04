@@ -214,7 +214,9 @@
 
   function renderTray() {
     el.tray.textContent = "";
-    Object.keys(level().tray).forEach((id) => {
+    const ids = Object.keys(level().tray);
+    el.tray.toggleAttribute("data-many", ids.length > 4);
+    ids.forEach((id) => {
       const count = state.inv[id];
       const chip = document.createElement("button");
       chip.type = "button";

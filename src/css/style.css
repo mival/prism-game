@@ -26,6 +26,7 @@ body {
   margin: 0 auto;
   display: grid;
   grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr);
   grid-template-areas: "top" "levels" "status" "stage" "tray";
   gap: 12px;
   padding: max(14px, env(safe-area-inset-top))
@@ -197,8 +198,10 @@ h1 {
   touch-action: none;
 }
 .chip canvas {
-  width: 44px;
-  height: 44px;
+  width: 100%;
+  max-width: 44px;
+  height: auto;
+  aspect-ratio: 1;
   display: block;
 }
 .chip .count {
@@ -210,6 +213,9 @@ h1 {
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--muted);
+}
+.tray[data-many] .chip .name {
+  display: none;
 }
 .chip.armed {
   border-color: var(--text);
@@ -253,6 +259,10 @@ h1 {
     flex-wrap: wrap;
   }
   .chip {
-    flex: 1 1 40%;
+    flex: 1 1 28%;
+    padding: 6px 4px 4px;
+  }
+  .chip canvas {
+    max-width: 34px;
   }
 }
