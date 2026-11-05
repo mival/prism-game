@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#0a0c0f" />
+    <title>Prism · How to play</title>
+    <script>
+      try {
+        var saved = localStorage.getItem("prism.theme");
+        if (saved === "light" || saved === "dark")
+          document.documentElement.dataset.theme = saved;
+      } catch (e) {}
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
+    />
+    <link rel="stylesheet" href="src/css/theme.css" />
+    <link rel="stylesheet" href="src/css/help.css" />
+  </head>
+  <body>
+    <main class="help">
+      <nav class="back"><a href="index.html">← Back to the game</a></nav>
+
+      <header>
+        <span class="eyebrow">PRISM · HOW TO PLAY</span>
+        <h1>Bend the light into every receiver</h1>
+        <p>
+          Each level has one or more lasers and receivers. Place and turn pieces
+          so every receiver gets light of exactly the color it shows, while no
+          dark sensor gets any light at all.
+        </p>
+      </header>
+
+      <section>
+        <h2>Controls</h2>
+        <ul class="controls">
+          <li>
+            <b>Place.</b> Tap a piece in the tray, then tap an empty tile. You
+            can also drag it straight onto the board.
+          </li>
+          <li>
+            <b>Turn.</b> Tap a placed piece. Mirrors and splitters turn in 22.5°
+            steps, so light can bend by 45° or 90°.
+          </li>
+          <li>
+            <b>Move or take back.</b> Drag a placed piece to another tile, or
+            drop it on the tray.
+          </li>
+          <li>
+            <b>Not every piece is needed.</b> From level 3 on, the tray also
+            holds decoys.
+          </li>
+          <li>
+            <b>Hint.</b> The bulb button places one piece in its correct spot
+            and locks it, marked with a star. If you haven't moved for 30
+            seconds, the bulb glows.
+          </li>
+          <li>
+            <b>Levels.</b> Use the arrows to step through levels, or
+            <i>Levels</i> to jump to any of them. Progress is saved in this
+            browser.
+          </li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Reading the light</h2>
+        <div class="cards">
+          <article class="card">
+            <canvas
+              data-demo="arrows"
+              aria-label="Animation: light reflected straight back drawn as two lanes"
+            ></canvas>
+            <div>
+              <h3>Direction arrows</h3>
+              <p>
+                Arrows run along each beam in the direction the light travels.
+                Light sent straight back, by a mirror square to the beam, splits
+                into two lanes with arrows pointing opposite ways.
+              </p>
+            </div>
+          </article>
+          <article class="card">
+            <canvas
+              data-demo="finish"
+              aria-label="Animation: rings around receivers filling up"
+            ></canvas>
+            <div>
+              <h3>Finishing a level</h3>
+              <p>
+                When every receiver is lit, rings around them fill up. Keep the
+                board as it is for a moment and the level counts as finished.
+                Any change starts the wait again.
+              </p>
+            </div>
+          </article>
+          <article class="card">
+            <canvas
+              data-demo="mixing"
+              aria-label="Animation: red and blue light together lighting a magenta receiver"
+            ></canvas>
+            <div>
+              <h3>Colors add up</h3>
+              <p>
+                Light arriving at the same receiver mixes: red and blue make
+                magenta, red and green make yellow, green and blue make cyan,
+                and all three make white. A receiver lights only for its own
+                color.
+              </p>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section>
+        <h2>Board</h2>
+        <div class="cards">
+          <article class="card">
+            <canvas
+              data-demo="laser"
+              aria-label="Animation: a laser beam stopping at a wall"
+            ></canvas>
+            <div>
+              <h3>Laser and wall</h3>
+              <p>
+                A laser sends a beam in a straight line. Most lasers send white
+                light; some send a single color. Walls and the board's edge stop
+                light.
+              </p>
+            </div>
+          </article>
+          <article class="card">
+            <canvas
+              data-demo="receiver"
+              aria-label="Animation: a receiver lighting only for its own color"
+            ></canvas>
+            <div>
+              <h3>Receiver</h3>
+              <p>
+                The ring shows the color it needs. Wrong-colored light leaves a
+                small dot of that color in the middle; the right color lights
+                the whole receiver.
+              </p>
+            </div>
+          </article>
+          <article class="card">
+            <canvas
+              data-demo="door"
+              aria-label="Animation: a red glass door passing only red light"
+            ></canvas>
+            <div>
+              <h3>Glass door</h3>
+              <p>
+                A wall made of colored glass. It lets only its own color
+                through, so white light leaves it red, green or blue, and other
+                colors stop at it.
+              </p>
+            </div>
+          </article>
+          <article class="card">
+            <canvas
+              data-demo="sensor"
+              aria-label="Animation: a dark sensor lighting up when the beam hits it"
+            ></canvas>
+            <div>
+              <h3>Dark sensor <span class="new">new</span></h3>
+              <p>
+                Must stay dark. If any light reaches it, it flashes and the
+                level can't be finished. Watch out for the second beam from a
+                splitter.
+              </p>
+            </div>
+          </article>
+          <article class="card">
+            <canvas
+              data-demo="portal"
+              aria-label="Animation: a beam entering one portal and leaving its twin"
+            ></canvas>
+            <div>
+              <h3>Portal <span class="new">new</span></h3>
+              <p>
+                Portals come in pairs of the same color. Light entering one
+                leaves the other, keeping its direction and color.
+              </p>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section>
+        <h2>Pieces</h2>
+        <div class="cards">
+          <article class="card">
+            <canvas
+              data-demo="mirror"
+              aria-label="Animation: a mirror turning through its positions"
+            ></canvas>
+            <div>
+              <h3>Mirror</h3>
+              <p>
+                Reflects light. Each tap turns it 22.5°, which changes the
+                beam's direction by 45°. Square to the beam, it sends the light
+                straight back.
+              </p>
+            </div>
+          </article>
+          <article class="card">
+            <canvas
+              data-demo="splitter"
+              aria-label="Animation: a splitter sending light two ways"
+            ></canvas>
+            <div>
+              <h3>Splitter</h3>
+              <p>
+                Half-silvered glass. It lets the light through and also reflects
+                a copy like a mirror would, so one beam becomes two.
+              </p>
+            </div>
+          </article>
+          <article class="card">
+            <canvas
+              data-demo="prism"
+              aria-label="Animation: a prism splitting white light and flipping"
+            ></canvas>
+            <div>
+              <h3>Prism</h3>
+              <p>
+                Splits white light: green goes straight on, red and blue bend
+                45° to either side. Tap it to flip which side red and blue go.
+              </p>
+            </div>
+          </article>
+          <article class="card">
+            <canvas
+              data-demo="filter"
+              aria-label="Animation: a filter changing the beam's color"
+            ></canvas>
+            <div>
+              <h3>Filter</h3>
+              <p>
+                Colored glass you can place. It passes only the colors it shows:
+                a yellow filter turns white light yellow and blocks blue.
+              </p>
+            </div>
+          </article>
+          <article class="card">
+            <canvas
+              data-demo="fixed"
+              aria-label="Animation: a fixed mirror turning in place"
+            ></canvas>
+            <div>
+              <h3>Fixed piece <span class="new">new</span></h3>
+              <p>
+                Comes with the level and has bolts in its corners. You can tap
+                it to turn it, but you can't move it or take it away.
+              </p>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <nav class="back bottom"><a href="index.html">← Back to the game</a></nav>
+    </main>
+
+    <script src="src/js/logic.js"></script>
+    <script src="src/js/render.js"></script>
+    <script src="src/js/help.js"></script>
+  </body>
+</html>

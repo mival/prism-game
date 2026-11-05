@@ -1,6 +1,6 @@
 # Prism
 
-A light puzzle for the browser. Route a laser into its receivers with mirrors, a prism, a beam splitter and color filters.
+A light puzzle for the browser. Route lasers into their receivers with mirrors, prisms, beam splitters and color filters, through glass doors and portals and past dark sensors.
 
 Play it at https://mival.github.io/prism-game/
 
@@ -12,8 +12,12 @@ Play it at https://mival.github.io/prism-game/
 - Arrows on each beam show which way the light travels. Light reflected straight back is drawn as two lanes with arrows pointing opposite ways.
 - A prism splits white light into red, green and blue. Each receiver lights only when the color it shows arrives, and colors that arrive together add up (red + blue = magenta, all three = white).
 - Colored glass walls let only their own color through. Filters work the same way but are pieces you place.
+- Dark sensors must receive no light at all. Light entering a portal leaves its twin. Fixed pieces (bolts in the corners) can be turned but not moved.
+- The bulb button gives a hint: it places one piece in its correct spot and locks it. After 30 seconds without a move, the bulb glows.
 
-There are 13 levels. From level 3 on, the tray also holds decoy pieces that no solution uses. A level counts as finished once its solution has stayed correct for a moment; the rings around the receivers fill up while that happens. Progress is saved in the browser.
+There are 25 levels. From level 3 on, the tray also holds decoy pieces that no solution uses. A level counts as finished once its solution has stayed correct for a moment; the rings around the receivers fill up while that happens. Progress is saved in the browser.
+
+`help.html` explains every item with an animated example.
 
 ## Themes
 
@@ -26,6 +30,9 @@ To add a theme, copy the light block in `theme.css` under a new `:root[data-them
 - `src/css/theme.css` holds the theme variables; `src/css/style.css` holds layout and components.
 - `src/js/logic.js` holds the puzzle rules, the levels and the beam tracer. It has no DOM code, so it also runs in Node.
 - `src/js/render.js` draws the pieces with Canvas 2D and composites the frame with WebGL, including a GPU bloom pass on the light layer. It falls back to Canvas 2D when WebGL is unavailable.
-- `src/js/main.js` handles layout, input and the render loop.
+- `src/js/main.js` handles layout, input, hints and the render loop.
+- `help.html` and `src/js/help.js` are the help page; its examples are tiny levels drawn by the same renderer.
+
+Every level stores one known solution, used by the hint button. Levels 14–25 were made by a generator that builds a level backwards from a random intended solution; a search over all piece placements then checked each one: unsolved at the start, solvable, needing every intended piece, and with decoy pieces that add no new solutions.
 
 The site is a static page; `.github/workflows/pages.yml` deploys it to GitHub Pages on every push to `main`.

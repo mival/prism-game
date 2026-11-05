@@ -93,6 +93,12 @@ h1 {
 .icon-btn {
   width: 34px;
   height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text);
+  text-decoration: none;
+  font-family: var(--mono);
   border-radius: var(--radius-sm);
   border: 1px solid var(--line);
   background: var(--panel);
@@ -101,28 +107,112 @@ h1 {
 }
 
 /* ------------------------------ levels ------------------------------ */
-.levels {
+.levelbar {
   grid-area: levels;
-  display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
-.levels button {
+.levels-btn {
+  flex: 1 1 auto;
   min-width: 0;
-  height: 30px;
-  border-radius: 6px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 12px;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--line);
   background: var(--panel);
-  color: var(--muted);
   font-size: 12px;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.levels-btn .done-count {
+  color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
-.levels button.done {
+.levels-btn .done-count::after {
+  content: " ▾";
+}
+@media (max-width: 380px) {
+  .levels-btn {
+    justify-content: center;
+  }
+  .levels-btn .lbl {
+    display: none;
+  }
+}
+.levelbar .lit {
+  flex: 0 0 auto;
+  min-width: 6.5em;
+  text-align: right;
+}
+
+dialog#levelDialog {
+  width: min(460px, calc(100vw - 32px));
+  max-height: calc(100dvh - 48px);
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--panel);
+  color: var(--text);
+}
+dialog#levelDialog::backdrop {
+  background: var(--overlay);
+}
+.dialog-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.dialog-head h2 {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+.level-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(78px, 1fr));
+  gap: 6px;
+}
+.level-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-width: 0;
+  padding: 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+  background: var(--chip);
+  text-align: left;
+}
+.level-cell .num {
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.level-cell .nm {
+  font-family: var(--sans);
+  font-size: 11px;
+  color: var(--muted);
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.level-cell.done .num::after {
+  content: " ✓";
   color: var(--lit);
 }
-.levels button[aria-current="true"] {
+.level-cell[aria-current="true"] {
   border-color: var(--text);
-  color: var(--text);
 }
 
 /* ------------------------------ status ------------------------------ */
@@ -143,6 +233,30 @@ h1 {
 }
 .status.win p {
   color: var(--lit);
+}
+.status.warn p {
+  color: var(--warn);
+}
+.icon-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+#hint {
+  color: var(--hint);
+}
+#hint.nudge {
+  border-color: var(--hint);
+  animation: nudge 1.4s ease-in-out infinite;
+}
+@keyframes nudge {
+  50% {
+    box-shadow: 0 0 0 6px color-mix(in srgb, var(--hint) 25%, transparent);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  #hint.nudge {
+    animation: none;
+  }
 }
 .next {
   flex: 0 0 auto;

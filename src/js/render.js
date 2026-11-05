@@ -38,6 +38,13 @@
     "prism-glass",
     "prism-edge",
     "filter-glare",
+    "sensor",
+    "sensor-edge",
+    "sensor-hit",
+    "portal-a",
+    "portal-b",
+    "lock",
+    "hint",
     "beam-core",
     "beam-arrow",
     "beam-arrow-on-white",
@@ -309,11 +316,150 @@
       ctx.stroke();
     },
 
+    /* Dark sensor: must not receive any light. */
+    sensor(ctx, x, y, S) {
+      const cx = (x + 0.5) * S,
+        cy = (y + 0.5) * S,
+        r = S * 0.36;
+      ctx.beginPath();
+      for (let i = 0; i < 8; i++) {
+        const a = Math.PI / 8 + (i * Math.PI) / 4;
+        ctx.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
+      }
+      ctx.closePath();
+      ctx.fillStyle = T.sensor;
+      ctx.fill();
+      ctx.strokeStyle = T.sensorEdge;
+      ctx.lineWidth = Math.max(1.5, S * 0.04);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(cx, cy, S * 0.1, 0, Math.PI * 2);
+      ctx.stroke();
+    },
+
+    sensorLight(ctx, x, y, hit, S, t) {
+      if (!hit) return;
+      const cx = (x + 0.5) * S,
+        cy = (y + 0.5) * S;
+      const pulse = 0.6 + 0.4 * Math.abs(Math.sin(t / 220));
+      const g = ctx.createRadialGradient(cx, cy, 1, cx, cy, S * 0.6);
+      g.addColorStop(0, T.sensorHit);
+      g.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.globalAlpha = 0.5 * pulse;
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(cx, cy, S * 0.6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = pulse;
+      ctx.strokeStyle = T.sensorHit;
+      ctx.lineWidth = Math.max(2, S * 0.06);
+      ctx.lineCap = "round";
+      const a = S * 0.14;
+      ctx.beginPath();
+      ctx.moveTo(cx - a, cy - a);
+      ctx.lineTo(cx + a, cy + a);
+      ctx.moveTo(cx + a, cy - a);
+      ctx.lineTo(cx - a, cy + a);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    },
+
+    /* Portal: light entering one of a pair leaves its twin unchanged. Pairs
+       alternate between two colours and carry one or two dots. */
+    portal(ctx, x, y, pair, S) {
+      const cx = (x + 0.5) * S,
+        cy = (y + 0.5) * S;
+      const col = pair % 2 ? T.portalB : T.portalA;
+      ctx.beginPath();
+      ctx.arc(cx, cy, S * 0.36, 0, Math.PI * 2);
+      ctx.fillStyle = T.receiverSocket;
+      ctx.fill();
+      ctx.strokeStyle = col;
+      ctx.lineWidth = Math.max(1.5, S * 0.045);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(cx, cy, S * 0.22, 0, Math.PI * 2);
+      ctx.globalAlpha = 0.5;
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = col;
+      const n = pair < 2 ? 1 : 2;
+      for (let i = 0; i < n; i++) {
+        ctx.beginPath();
+        ctx.arc(
+          cx + (i - (n - 1) / 2) * S * 0.12,
+          cy,
+          S * 0.045,
+          0,
+          Math.PI * 2,
+        );
+        ctx.fill();
+      }
+    },
+
+    portalLight(ctx, x, y, pair, S, t) {
+      const cx = (x + 0.5) * S,
+        cy = (y + 0.5) * S;
+      const col = pair % 2 ? T.portalB : T.portalA;
+      const spin = (t / 900) * (pair % 2 ? -1 : 1);
+      ctx.strokeStyle = col;
+      ctx.lineCap = "round";
+      ctx.lineWidth = Math.max(1.5, S * 0.04);
+      ctx.globalAlpha = 0.7;
+      for (let i = 0; i < 3; i++) {
+        const a = spin + (i * Math.PI * 2) / 3;
+        ctx.beginPath();
+        ctx.arc(cx, cy, S * 0.29, a, a + 0.9);
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+    },
+
+    /* Bolts in the corners: a fixed piece can turn but not move. */
+    bolts(ctx, cx, cy, S) {
+      ctx.fillStyle = T.lock;
+      const o = S * 0.36;
+      for (const [sx, sy] of [
+        [-1, -1],
+        [1, -1],
+        [-1, 1],
+        [1, 1],
+      ]) {
+        ctx.beginPath();
+        ctx.arc(
+          cx + sx * o,
+          cy + sy * o,
+          Math.max(1.5, S * 0.04),
+          0,
+          Math.PI * 2,
+        );
+        ctx.fill();
+      }
+    },
+
+    /* A piece the hint placed: correct, and locked in place. */
+    hintMark(ctx, cx, cy, S) {
+      ctx.fillStyle = T.hint;
+      ctx.beginPath();
+      const x = cx + S * 0.34,
+        y = cy - S * 0.34,
+        r = S * 0.09;
+      for (let i = 0; i < 10; i++) {
+        const a = -Math.PI / 2 + (i * Math.PI) / 5;
+        const rr = i % 2 ? r * 0.45 : r;
+        ctx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr);
+      }
+      ctx.closePath();
+      ctx.fill();
+    },
+
     piece(ctx, p, cx, cy, S) {
       if (p.type === "mirror") Draw.mirror(ctx, cx, cy, p.k, S);
       else if (p.type === "splitter") Draw.splitter(ctx, cx, cy, p.k, S);
       else if (p.type === "prism") Draw.prism(ctx, cx, cy, p.k, S);
       else if (p.type === "filter") Draw.filter(ctx, cx, cy, p.color, S);
+      if (p.fixed) Draw.bolts(ctx, cx, cy, S);
+      if (p.hinted) Draw.hintMark(ctx, cx, cy, S);
     },
 
     beam(ctx, x0, y0, x1, y1, c, S) {
@@ -375,6 +521,103 @@
     },
   };
 
+  /* ------------------------------ scene ------------------------------ */
+
+  /* Draws a whole level: the game board and the help page demos share it. */
+  const Scene = (function () {
+    const L = root.PrismLogic;
+    const center = (v, S) => (v + 0.5) * S;
+    const RETURN_LANE = 0.11;
+
+    function overlapsBackwards(a, b) {
+      if (b.d !== (a.d + 4) % 8) return false;
+      const [dx, dy] = L.DIRS[a.d];
+      if (Math.abs(dx * (b.y0 - a.y0) - dy * (b.x0 - a.x0)) > 1e-6)
+        return false;
+      const proj = (x, y) => (x - a.x0) * dx + (y - a.y0) * dy;
+      const aEnd = proj(a.x1, a.y1);
+      const b0 = proj(b.x0, b.y0),
+        b1 = proj(b.x1, b.y1);
+      return (
+        Math.max(0, Math.min(b0, b1)) < Math.min(aEnd, Math.max(b0, b1)) - 1e-6
+      );
+    }
+
+    /* Light sent straight back would draw on top of itself, so each direction
+       moves to its own lane on the right-hand side of its travel. */
+    function laneOffset(run, runs) {
+      if (!runs.some((o) => o !== run && overlapsBackwards(run, o)))
+        return [0, 0];
+      const [dx, dy] = L.DIRS[run.d];
+      const len = Math.hypot(dx, dy);
+      return [(-dy / len) * RETURN_LANE, (dx / len) * RETURN_LANE];
+    }
+
+    function base(ctx, level, pieces, S, hidden) {
+      const [cols, rows] = L.sizeOf(level);
+      Draw.board(ctx, S, cols, rows);
+      level.walls.forEach(([x, y]) => Draw.wall(ctx, x, y, S));
+      (level.doors || []).forEach(([x, y, c]) => Draw.door(ctx, x, y, c, S));
+      (level.sensors || []).forEach(([x, y]) => Draw.sensor(ctx, x, y, S));
+      (level.portals || []).forEach(([ax, ay, bx, by], i) => {
+        Draw.portal(ctx, ax, ay, i, S);
+        Draw.portal(ctx, bx, by, i, S);
+      });
+      level.sources.forEach((s) =>
+        Draw.source(ctx, center(s.x, S), center(s.y, S), s.d, S),
+      );
+      level.receivers.forEach((r) =>
+        Draw.receiver(ctx, center(r.x, S), center(r.y, S), r.c, S),
+      );
+      pieces.forEach((p) => {
+        if (p !== hidden) Draw.piece(ctx, p, center(p.x, S), center(p.y, S), S);
+      });
+    }
+
+    function light(ctx, level, result, S, t, phase) {
+      const runs = result.runs.map((r) => {
+        const [ox, oy] = laneOffset(r, result.runs);
+        return [
+          center(r.x0 + ox, S),
+          center(r.y0 + oy, S),
+          center(r.x1 + ox, S),
+          center(r.y1 + oy, S),
+          r.c,
+        ];
+      });
+      runs.forEach(([x0, y0, x1, y1, c]) =>
+        Draw.beam(ctx, x0, y0, x1, y1, c, S),
+      );
+      runs.forEach(([x0, y0, x1, y1, c]) =>
+        Draw.arrows(ctx, x0, y0, x1, y1, c, S, phase),
+      );
+      (level.portals || []).forEach(([ax, ay, bx, by], i) => {
+        Draw.portalLight(ctx, ax, ay, i, S, t);
+        Draw.portalLight(ctx, bx, by, i, S, t);
+      });
+      level.sources.forEach((s) =>
+        Draw.sourceLight(ctx, center(s.x, S), center(s.y, S), s.d, s.c, S),
+      );
+      (level.sensors || []).forEach(([x, y], i) =>
+        Draw.sensorLight(ctx, x, y, result.sensorHits[i], S, t),
+      );
+      level.receivers.forEach((r, i) =>
+        Draw.receiverLight(
+          ctx,
+          center(r.x, S),
+          center(r.y, S),
+          r.c,
+          result.hits[i],
+          result.lit[i],
+          S,
+          t,
+        ),
+      );
+    }
+
+    return { base, light, center };
+  })();
+
   /* ------------------------------ compositor ------------------------------ */
 
   const VS = `
@@ -422,7 +665,7 @@
     }`;
 
   class Compositor {
-    constructor(canvas) {
+    constructor(canvas, options = {}) {
       this.canvas = canvas;
       const opts = {
         alpha: false,
@@ -430,8 +673,10 @@
         premultipliedAlpha: false,
       };
       this.gl =
-        canvas.getContext("webgl", opts) ||
-        canvas.getContext("experimental-webgl", opts);
+        options.webgl === false
+          ? null
+          : canvas.getContext("webgl", opts) ||
+            canvas.getContext("experimental-webgl", opts);
       if (this.gl) {
         try {
           this.initGL();
@@ -618,5 +863,5 @@
     }
   }
 
-  root.PrismRender = { COLORS, Draw, Compositor, readTheme, theme: T };
+  root.PrismRender = { COLORS, Draw, Scene, Compositor, readTheme, theme: T };
 })(window);
