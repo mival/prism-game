@@ -19,6 +19,10 @@ There are 25 levels. From level 3 on, the tray also holds decoy pieces that no s
 
 `help.html` explains every item with an animated example.
 
+### Moving progress to another device
+
+Levels > Progress shows a save code such as `04FN-MNMS-VF63-RZ97-J19C-C1WG` that can be copied, downloaded as a text file, or shared as a link ending in `#restore-…`. Typing the code, loading the file or opening the link on another device restores the progress, merging with what is there. The format lives in `src/js/progress.js`: solved levels as bits in an append-only list of level ids, Endless wins and the last level, scrambled and protected by a checksum so typos and edited codes are rejected. It isn't encryption: the page has to be able to read its own codes.
+
 ### Endless mode
 
 The level list also offers Endless: Easy, Medium or Hard levels generated on the spot by `src/js/generator.js`, running in a Web Worker (`src/js/endless-worker.js`) so the game keeps animating. Every generated level is checked before it is shown: not solved at the start, solvable with exactly the intended pieces, few solutions, and decoys that add none. The next level is built while you play the current one.

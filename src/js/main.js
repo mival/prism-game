@@ -30,6 +30,14 @@
     currentCode: $("currentCode"),
     codeText: $("codeText"),
     copyCode: $("copyCode"),
+    saveCode: $("saveCode"),
+    copySave: $("copySave"),
+    copySaveLink: $("copySaveLink"),
+    downloadSave: $("downloadSave"),
+    restoreForm: $("restoreForm"),
+    restoreInput: $("restoreInput"),
+    restoreFile: $("restoreFile"),
+    restoreMsg: $("restoreMsg"),
   };
 
   const DRAG_START_PX = 8;
@@ -448,8 +456,128 @@
     el.hint.disabled = won;
   }
 
+  /* ------------------------------ progress ------------------------------ */
+
+  /* Save codes (src/js/progress.js) carry progress to another device.
+     Restoring merges: solved levels are added and Endless counts keep the
+     higher number, so a restore never loses anything. */
+  const Progress = window.PrismProgress;
+
+  const saveCode = () =>
+    Progress.encode({
+      done: [...state.done],
+      endless: state.endlessSolved,
+      level: state.level,
+    });
+  const saveLink = () =>
+    location.origin +
+    location.pathname +
+    "#restore-" +
+    saveCode().replace(/-/g, "");
+
+  function renderProgress() {
+    el.saveCode.textContent = saveCode();
+  }
+
+  function flash(button, text) {
+    const old = button.textContent;
+    button.textContent = text;
+    setTimeout(() => (button.textContent = old), 1500);
+  }
+
+  function copy(text, button) {
+    if (navigator.clipboard && navigator.clipboard.writeText)
+      navigator.clipboard.writeText(text).then(
+        () => flash(button, "Copied"),
+        () => flash(button, "Select and copy it"),
+      );
+    else flash(button, "Select and copy it");
+  }
+
+  function restoreMessage(text, ok) {
+    el.restoreMsg.hidden = false;
+    el.restoreMsg.textContent = text;
+    el.restoreMsg.classList.toggle("ok", ok);
+    el.restoreMsg.classList.toggle("bad", !ok);
+  }
+
+  /* Returns a sentence describing the result, and whether it worked. */
+  function restore(code) {
+    const p = code && Progress.decode(code);
+    if (!p)
+      return [
+        "That isn't a valid save code. Check it for typos; dashes and spaces don't matter.",
+        false,
+      ];
+    const before = state.done.size;
+    const known = new Set(L.LEVELS.map((l) => l.id));
+    p.done.filter((id) => known.has(id)).forEach((id) => state.done.add(id));
+    for (const d of ["easy", "medium", "hard"])
+      state.endlessSolved[d] = Math.max(
+        state.endlessSolved[d] || 0,
+        p.endless[d] || 0,
+      );
+    save("prism.done", [...state.done]);
+    save("prism.endless", state.endlessSolved);
+    const wins = p.endless.easy + p.endless.medium + p.endless.hard;
+    const added = state.done.size - before;
+    if (!state.endless && p.level < L.LEVELS.length) loadLevel(p.level);
+    renderLevels();
+    renderEndless();
+    return [
+      `Restored ${p.done.length} solved level${p.done.length === 1 ? "" : "s"}` +
+        (added < p.done.length ? ` (${added} new here)` : "") +
+        (wins ? ` and ${wins} Endless win${wins === 1 ? "" : "s"}` : "") +
+        ".",
+      true,
+    ];
+  }
+
+  el.copySave.addEventListener("click", () => copy(saveCode(), el.copySave));
+  el.copySaveLink.addEventListener("click", () =>
+    copy(saveLink(), el.copySaveLink),
+  );
+  el.downloadSave.addEventListener("click", () => {
+    const text =
+      "Prism save code\n\n" +
+      saveCode() +
+      "\n\nTo continue on another device, open Prism, go to Levels > Progress,\n" +
+      "and load this file or type the code. Or open this link:\n" +
+      saveLink() +
+      "\n";
+    const url = URL.createObjectURL(new Blob([text], { type: "text/plain" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `prism-save-${new Date().toISOString().slice(0, 10)}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  });
+  el.restoreForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    restoreMessage(...restore(el.restoreInput.value));
+  });
+  el.restoreFile.addEventListener("change", () => {
+    const file = el.restoreFile.files && el.restoreFile.files[0];
+    if (!file) return;
+    file.text().then(
+      (text) => {
+        const code = Progress.findCode(text);
+        restoreMessage(
+          ...(code
+            ? restore(code)
+            : ["That file doesn't contain a save code.", false]),
+        );
+        el.restoreFile.value = "";
+      },
+      () => restoreMessage("That file couldn't be read.", false),
+    );
+  });
+
   function renderLevels() {
     el.doneCount.textContent = `${state.done.size}/${L.LEVELS.length} done`;
+    renderProgress();
     el.grid.textContent = "";
     L.LEVELS.forEach((lv, i) => {
       const b = document.createElement("button");
@@ -478,6 +606,8 @@
   }
 
   el.levelsBtn.addEventListener("click", () => {
+    el.restoreMsg.hidden = true;
+    renderProgress();
     if (el.dialog.showModal) el.dialog.showModal();
     else el.dialog.setAttribute("open", "");
     const cur = el.grid.querySelector('[aria-current="true"]');
@@ -818,8 +948,18 @@
   new ResizeObserver(layout).observe(el.stage);
   const savedLevel = Number(load("prism.level", 0));
   const sharedCode = /^#([EMH]-\d{1,9})$/i.exec(location.hash);
+  const restoreCode = /^#restore-([0-9A-Za-z]+)$/.exec(location.hash);
   loadLevel(savedLevel >= 0 && savedLevel < L.LEVELS.length ? savedLevel : 0);
   if (sharedCode) playEndless(null, sharedCode[1].toUpperCase());
+  if (restoreCode) {
+    const [text, ok] = restore(restoreCode[1]);
+    el.statusText.textContent = ok
+      ? text + " Your save code is under Levels > Progress."
+      : "That restore link is damaged. " + text;
+    el.status.classList.toggle("win", ok);
+    el.status.classList.toggle("warn", !ok);
+    history.replaceState(null, "", location.pathname);
+  }
   renderEndless();
   applyTheme();
   layout();
@@ -833,5 +973,7 @@
     giveHint,
     loadLevel,
     playEndless,
+    restore,
+    saveCode,
   };
 })();
