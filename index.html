@@ -28,11 +28,28 @@
     <div id="app">
       <header class="top">
         <div class="title">
-          <span class="eyebrow" id="levelNo">LEVEL 01</span>
+          <span class="eyebrow" id="levelNo">LEVEL 01 / 25</span>
           <h1 id="levelName">First Light</h1>
         </div>
         <div class="meta">
-          <span class="lit" id="lit">0 / 1 lit</span>
+          <button
+            class="icon-btn"
+            id="hint"
+            type="button"
+            aria-label="Hint: place one piece correctly"
+            title="Hint: place one piece correctly"
+          >
+            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+              <path
+                d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.6 10.8c.7.6 1.1 1.3 1.1 2.2h5c0-.9.4-1.6 1.1-2.2A6 6 0 0 0 12 3Z"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </button>
           <button
             class="icon-btn"
             id="reset"
@@ -42,6 +59,14 @@
           >
             ↺
           </button>
+          <a
+            class="icon-btn"
+            id="help"
+            href="help.html"
+            aria-label="How to play"
+            title="How to play"
+            >?</a
+          >
           <button
             class="icon-btn"
             id="theme"
@@ -54,7 +79,34 @@
         </div>
       </header>
 
-      <nav class="levels" id="levels" aria-label="Levels"></nav>
+      <nav class="levelbar" aria-label="Levels">
+        <button
+          class="icon-btn"
+          id="prevLevel"
+          type="button"
+          aria-label="Previous level"
+        >
+          ‹
+        </button>
+        <button
+          class="levels-btn"
+          id="levelsBtn"
+          type="button"
+          aria-haspopup="dialog"
+        >
+          <span class="lbl">Levels</span
+          ><span class="done-count" id="doneCount">0 / 25 done</span>
+        </button>
+        <button
+          class="icon-btn"
+          id="nextLevel"
+          type="button"
+          aria-label="Next level"
+        >
+          ›
+        </button>
+        <span class="lit" id="lit">0 / 1 lit</span>
+      </nav>
 
       <div class="status" id="status" aria-live="polite">
         <p id="statusText"></p>
@@ -69,6 +121,14 @@
 
       <div class="tray" id="tray" aria-label="Pieces"></div>
     </div>
+
+    <dialog id="levelDialog" aria-labelledby="levelDialogTitle">
+      <form method="dialog" class="dialog-head">
+        <h2 id="levelDialogTitle">Levels</h2>
+        <button class="icon-btn" type="submit" aria-label="Close">✕</button>
+      </form>
+      <div class="level-grid" id="levelGrid"></div>
+    </dialog>
 
     <script src="src/js/logic.js"></script>
     <script src="src/js/render.js"></script>

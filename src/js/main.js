@@ -2,14 +2,13 @@
 
 (function () {
   const L = window.PrismLogic;
-  const { Draw, Compositor, readTheme, theme } = window.PrismRender;
+  const { Draw, Scene, Compositor, readTheme, theme } = window.PrismRender;
   const $ = (id) => document.getElementById(id);
 
   const el = {
     stage: $("stage"),
     board: $("board"),
     tray: $("tray"),
-    levels: $("levels"),
     levelNo: $("levelNo"),
     levelName: $("levelName"),
     lit: $("lit"),
@@ -18,6 +17,13 @@
     next: $("next"),
     reset: $("reset"),
     theme: $("theme"),
+    hint: $("hint"),
+    prev: $("prevLevel"),
+    fwd: $("nextLevel"),
+    levelsBtn: $("levelsBtn"),
+    doneCount: $("doneCount"),
+    dialog: $("levelDialog"),
+    grid: $("levelGrid"),
   };
 
   const DRAG_START_PX = 8;
@@ -25,7 +31,8 @@
      this long, so tapping pieces at random can't finish it by passing
      through a solved state on the way to the next rotation. */
   const SOLVE_HOLD_MS = 1500;
-  const RETURN_LANE = 0.11;
+  /* After this long without a move, the hint button offers itself. */
+  const STUCK_MS = 30000;
   const reduceMotion = window.matchMedia(
     "(prefers-reduced-motion: reduce)",
   ).matches;
@@ -45,6 +52,8 @@
     result: null,
     holdSince: null,
     confirmed: false,
+    lastMove: 0,
+    stuck: false,
     done: new Set(load("prism.done", [])),
     S: 1,
     baseDirty: true,
@@ -111,15 +120,23 @@
 
   function loadLevel(i) {
     state.level = i;
-    state.pieces = [];
+    state.pieces = L.fixedPieces(level());
     state.inv = { ...level().tray };
     state.armed = null;
     state.drag = null;
-    el.levelNo.textContent = "LEVEL " + String(i + 1).padStart(2, "0");
+    el.levelNo.textContent =
+      "LEVEL " +
+      String(i + 1).padStart(2, "0") +
+      " / " +
+      String(L.LEVELS.length).padStart(2, "0");
     el.levelName.textContent = level().name;
+    el.prev.disabled = i === 0;
+    el.fwd.disabled = i === L.LEVELS.length - 1;
+    save("prism.level", i);
     update();
   }
 
+  /* Call after every change the player (or a hint) makes. */
   function update() {
     const lv = level();
     state.result = L.trace(lv, state.pieces);
@@ -127,6 +144,9 @@
     el.lit.textContent = `${n} / ${lv.receivers.length} lit`;
     state.holdSince = state.result.solved ? performance.now() : null;
     state.confirmed = false;
+    state.lastMove = performance.now();
+    state.stuck = false;
+    el.hint.classList.remove("nudge");
     el.lit.classList.remove("all");
     el.board.setAttribute(
       "aria-label",
@@ -162,48 +182,148 @@
 
   function rotate(p) {
     const states = L.PIECES[p.type].states;
-    if (states > 1) {
+    if (states > 1 && !p.hinted) {
       p.k = (p.k + 1) % states;
       update();
     }
   }
+
+  const movable = (p) => !p.fixed && !p.hinted;
+
+  /* ------------------------------ hints ------------------------------ */
+
+  /* Each level stores one known solution. A hint makes one part of the board
+     match it: it turns a fixed piece, or places one tray piece in its correct
+     spot (clearing the tile first and taking the piece off the board if the
+     tray has none left), and locks that piece. Once every solution piece is
+     in place, further hints take extra pieces back to the tray. */
+  function giveHint() {
+    if (state.confirmed) return;
+    const lv = level();
+    const sol = lv.solution;
+    const fixed = state.pieces.filter((p) => p.fixed);
+    for (let i = 0; i < fixed.length; i++) {
+      if (fixed[i].k !== sol.fixed[i]) {
+        fixed[i].k = sol.fixed[i];
+        fixed[i].hinted = true;
+        return update();
+      }
+    }
+    for (const s of sol.placed) {
+      const here = state.pieces.find((p) => p.x === s.x && p.y === s.y);
+      if (here && here.trayId === s.id && here.k === s.k) {
+        if (!here.hinted) {
+          here.hinted = true;
+          return update();
+        }
+        continue;
+      }
+      if (here) {
+        state.pieces = state.pieces.filter((p) => p !== here);
+        state.inv[here.trayId]++;
+      }
+      if (state.inv[s.id] <= 0) {
+        const spare = state.pieces.find(
+          (p) =>
+            p.trayId === s.id &&
+            !p.hinted &&
+            !sol.placed.some(
+              (o) =>
+                o.x === p.x && o.y === p.y && o.id === p.trayId && o.k === p.k,
+            ),
+        );
+        if (spare) {
+          state.pieces = state.pieces.filter((p) => p !== spare);
+          state.inv[s.id]++;
+        }
+      }
+      const p = L.pieceFromTrayId(s.id, s.x, s.y);
+      p.trayId = s.id;
+      p.k = s.k;
+      p.hinted = true;
+      state.pieces.push(p);
+      state.inv[s.id]--;
+      state.armed = null;
+      return update();
+    }
+    const extra = state.pieces.find((p) => !p.fixed && !p.hinted);
+    if (extra) {
+      state.pieces = state.pieces.filter((p) => p !== extra);
+      state.inv[extra.trayId]++;
+      update();
+    }
+  }
+
+  el.hint.addEventListener("click", giveHint);
 
   /* ------------------------------ UI chrome ------------------------------ */
 
   function renderStatus() {
     const last = state.level === L.LEVELS.length - 1;
     const won = state.confirmed;
-    const holding = state.result.solved && !won;
+    const res = state.result;
+    const holding = res.solved && !won;
+    const burning = res.dark.some((d) => !d);
     el.status.classList.toggle("win", won);
-    el.status.classList.toggle("holding", holding);
+    el.status.classList.toggle("warn", !won && burning);
     el.statusText.textContent = won
       ? last
         ? "Level complete. That was the last one."
         : "Level complete."
       : holding
         ? "All receivers lit. Keep it like this to finish the level."
-        : level().hint;
+        : burning && res.lit.every(Boolean)
+          ? "Every receiver is lit, but light is hitting a dark sensor."
+          : state.stuck
+            ? "Stuck? The hint button places one piece in its correct spot."
+            : level().hint;
     el.next.hidden = !won || last;
+    el.hint.disabled = won;
   }
 
   function renderLevels() {
-    el.levels.textContent = "";
+    el.doneCount.textContent = `${state.done.size}/${L.LEVELS.length} done`;
+    el.grid.textContent = "";
     L.LEVELS.forEach((lv, i) => {
       const b = document.createElement("button");
       b.type = "button";
-      b.textContent = i + 1;
-      b.title = lv.name;
       const solved = state.done.has(lv.id);
+      b.className = "level-cell" + (solved ? " done" : "");
+      if (i === state.level) b.setAttribute("aria-current", "true");
       b.setAttribute(
         "aria-label",
         `Level ${i + 1}, ${lv.name}${solved ? ", solved" : ""}`,
       );
-      if (i === state.level) b.setAttribute("aria-current", "true");
-      if (solved) b.classList.add("done");
-      b.addEventListener("click", () => loadLevel(i));
-      el.levels.appendChild(b);
+      const num = document.createElement("span");
+      num.className = "num";
+      num.textContent = i + 1;
+      const name = document.createElement("span");
+      name.className = "nm";
+      name.textContent = lv.name;
+      b.append(num, name);
+      b.addEventListener("click", () => {
+        el.dialog.close();
+        loadLevel(i);
+      });
+      el.grid.appendChild(b);
     });
   }
+
+  el.levelsBtn.addEventListener("click", () => {
+    if (el.dialog.showModal) el.dialog.showModal();
+    else el.dialog.setAttribute("open", "");
+    const cur = el.grid.querySelector('[aria-current="true"]');
+    if (cur) cur.focus();
+  });
+  el.dialog.addEventListener("click", (e) => {
+    if (e.target === el.dialog) el.dialog.close();
+  });
+  el.prev.addEventListener("click", () =>
+    loadLevel(Math.max(0, state.level - 1)),
+  );
+  el.fwd.addEventListener("click", () =>
+    loadLevel(Math.min(L.LEVELS.length - 1, state.level + 1)),
+  );
 
   const trayName = (id) => {
     const [type, mask] = id.split(":");
@@ -352,7 +472,8 @@
     if (!d) return;
     if (
       !d.active &&
-      Math.hypot(e.clientX - d.sx, e.clientY - d.sy) > DRAG_START_PX
+      Math.hypot(e.clientX - d.sx, e.clientY - d.sy) > DRAG_START_PX &&
+      (d.kind === "tray" || movable(d.piece))
     ) {
       d.active = true;
       state.armed = null;
@@ -425,57 +546,22 @@
 
   /* ------------------------------ drawing ------------------------------ */
 
-  const center = (v, S) => (v + 0.5) * S;
-
-  function overlapsBackwards(a, b) {
-    if (b.d !== (a.d + 4) % 8) return false;
-    const [dx, dy] = L.DIRS[a.d];
-    if (Math.abs(dx * (b.y0 - a.y0) - dy * (b.x0 - a.x0)) > 1e-6) return false;
-    const proj = (x, y) => (x - a.x0) * dx + (y - a.y0) * dy;
-    const aEnd = proj(a.x1, a.y1);
-    const b0 = proj(b.x0, b.y0),
-      b1 = proj(b.x1, b.y1);
-    return (
-      Math.max(0, Math.min(b0, b1)) < Math.min(aEnd, Math.max(b0, b1)) - 1e-6
-    );
-  }
-
-  /* Light sent straight back would draw on top of itself, so each direction
-     moves to its own lane on the right-hand side of its travel. */
-  function laneOffset(run, runs) {
-    if (!runs.some((o) => o !== run && overlapsBackwards(run, o)))
-      return [0, 0];
-    const [dx, dy] = L.DIRS[run.d];
-    const len = Math.hypot(dx, dy);
-    return [(-dy / len) * RETURN_LANE, (dx / len) * RETURN_LANE];
-  }
+  const center = Scene.center;
 
   function drawBase() {
     const S = state.S,
       lv = level(),
       ctx = bctx;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    Draw.board(ctx, S, L.COLS, L.ROWS);
+    const d = state.drag;
+    Scene.base(ctx, lv, state.pieces, S, null);
 
-    if (state.armed || (state.drag && state.drag.active)) {
+    if (state.armed || (d && d.active)) {
       for (let x = 0; x < L.COLS; x++)
         for (let y = 0; y < L.ROWS; y++)
           if (L.isFree(lv, state.pieces, x, y)) Draw.freeCell(ctx, x, y, S);
     }
 
-    lv.walls.forEach(([x, y]) => Draw.wall(ctx, x, y, S));
-    (lv.doors || []).forEach(([x, y, c]) => Draw.door(ctx, x, y, c, S));
-    lv.sources.forEach((s) =>
-      Draw.source(ctx, center(s.x, S), center(s.y, S), s.d, S),
-    );
-    lv.receivers.forEach((r) =>
-      Draw.receiver(ctx, center(r.x, S), center(r.y, S), r.c, S),
-    );
-    state.pieces.forEach((p) =>
-      Draw.piece(ctx, p, center(p.x, S), center(p.y, S), S),
-    );
-
-    const d = state.drag;
     if (d && d.active && d.x !== undefined) {
       const c = cellAt(d.x, d.y);
       if (c)
@@ -501,25 +587,8 @@
     ctx.globalCompositeOperation = "lighter";
 
     const phase = reduceMotion ? 0.5 : (t / 1000) * 1.5;
-    const all = state.result.runs;
-    const runs = all.map((r) => {
-      const [ox, oy] = laneOffset(r, all);
-      return [
-        center(r.x0 + ox, S),
-        center(r.y0 + oy, S),
-        center(r.x1 + ox, S),
-        center(r.y1 + oy, S),
-        r.c,
-      ];
-    });
-    runs.forEach(([x0, y0, x1, y1, c]) => Draw.beam(ctx, x0, y0, x1, y1, c, S));
-    runs.forEach(([x0, y0, x1, y1, c]) =>
-      Draw.arrows(ctx, x0, y0, x1, y1, c, S, phase),
-    );
+    Scene.light(ctx, lv, state.result, S, t, phase);
 
-    lv.sources.forEach((s) =>
-      Draw.sourceLight(ctx, center(s.x, S), center(s.y, S), s.d, s.c, S),
-    );
     const charge = state.confirmed
       ? 1
       : state.holdSince !== null && !(state.drag && state.drag.active)
@@ -536,18 +605,6 @@
           S,
         ),
       );
-    lv.receivers.forEach((r, i) =>
-      Draw.receiverLight(
-        ctx,
-        center(r.x, S),
-        center(r.y, S),
-        r.c,
-        state.result.hits[i],
-        state.result.lit[i],
-        S,
-        t,
-      ),
-    );
     ctx.globalCompositeOperation = "source-over";
   }
 
@@ -559,6 +616,16 @@
       t - state.holdSince >= SOLVE_HOLD_MS
     )
       confirmSolved();
+    if (
+      !state.confirmed &&
+      !state.stuck &&
+      !state.drag &&
+      t - state.lastMove >= STUCK_MS
+    ) {
+      state.stuck = true;
+      el.hint.classList.add("nudge");
+      renderStatus();
+    }
     const baseDirty = state.baseDirty;
     if (baseDirty) drawBase();
     drawLight(t);
@@ -571,10 +638,18 @@
 
   readTheme();
   new ResizeObserver(layout).observe(el.stage);
-  loadLevel(0);
+  const savedLevel = Number(load("prism.level", 0));
+  loadLevel(savedLevel >= 0 && savedLevel < L.LEVELS.length ? savedLevel : 0);
   applyTheme();
   layout();
   requestAnimationFrame(frame);
 
-  window.__prism = { state, L, accelerated: compositor.accelerated, theme };
+  window.__prism = {
+    state,
+    L,
+    accelerated: compositor.accelerated,
+    theme,
+    giveHint,
+    loadLevel,
+  };
 })();

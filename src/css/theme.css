@@ -61,6 +61,13 @@
   --prism-glass: rgba(170, 210, 255, 0.1);
   --prism-edge: rgba(200, 230, 255, 0.9);
   --filter-glare: rgba(255, 255, 255, 0.35);
+  --sensor: #22161a;
+  --sensor-edge: #5a2a33;
+  --sensor-hit: #ff3b4e;
+  --portal-a: #b98cff;
+  --portal-b: #ffb35c;
+  --lock: #7d8a99;
+  --hint: #ffd23d;
 
   /* light */
   --beam-white: #fff6e4;
@@ -117,6 +124,13 @@
     --prism-glass: rgba(70, 120, 190, 0.1);
     --prism-edge: #3c4a5c;
     --filter-glare: rgba(255, 255, 255, 0.7);
+    --sensor: #fbe9ec;
+    --sensor-edge: #d9a3ac;
+    --sensor-hit: #d92d3f;
+    --portal-a: #7c4dff;
+    --portal-b: #d97200;
+    --lock: #6a7685;
+    --hint: #b07800;
     --beam-white: #4a505a;
     --beam-red: #e5243b;
     --beam-green: #0fa958;
@@ -172,6 +186,13 @@
   --prism-glass: rgba(70, 120, 190, 0.1);
   --prism-edge: #3c4a5c;
   --filter-glare: rgba(255, 255, 255, 0.7);
+  --sensor: #fbe9ec;
+  --sensor-edge: #d9a3ac;
+  --sensor-hit: #d92d3f;
+  --portal-a: #7c4dff;
+  --portal-b: #d97200;
+  --lock: #6a7685;
+  --hint: #b07800;
   --beam-white: #4a505a;
   --beam-red: #e5243b;
   --beam-green: #0fa958;
