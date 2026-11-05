@@ -24,6 +24,12 @@
     doneCount: $("doneCount"),
     dialog: $("levelDialog"),
     grid: $("levelGrid"),
+    codeForm: $("codeForm"),
+    codeInput: $("codeInput"),
+    codeError: $("codeError"),
+    currentCode: $("currentCode"),
+    codeText: $("codeText"),
+    copyCode: $("copyCode"),
   };
 
   const DRAG_START_PX = 8;
@@ -55,11 +61,16 @@
     lastMove: 0,
     stuck: false,
     done: new Set(load("prism.done", [])),
+    endless: null,
+    endlessSolved: load("prism.endless", { easy: 0, medium: 0, hard: 0 }),
+    prefetch: null,
+    busy: false,
     S: 1,
     baseDirty: true,
   };
 
-  const level = () => L.LEVELS[state.level];
+  const level = () =>
+    state.endless ? state.endless.level : L.LEVELS[state.level];
 
   function load(key, fallback) {
     try {
@@ -118,12 +129,17 @@
 
   /* ------------------------------ state ------------------------------ */
 
-  function loadLevel(i) {
-    state.level = i;
-    state.pieces = L.fixedPieces(level());
-    state.inv = { ...level().tray };
+  function startLevel(lv) {
+    state.pieces = L.fixedPieces(lv);
+    state.inv = { ...lv.tray };
     state.armed = null;
     state.drag = null;
+    update();
+  }
+
+  function loadLevel(i) {
+    state.level = i;
+    state.endless = null;
     el.levelNo.textContent =
       "LEVEL " +
       String(i + 1).padStart(2, "0") +
@@ -132,9 +148,152 @@
     el.levelName.textContent = level().name;
     el.prev.disabled = i === 0;
     el.fwd.disabled = i === L.LEVELS.length - 1;
+    el.prev.setAttribute("aria-label", "Previous level");
+    el.fwd.setAttribute("aria-label", "Next level");
+    el.prev.title = "Previous level";
+    el.fwd.title = "Next level";
     save("prism.level", i);
-    update();
+    if (location.hash) history.replaceState(null, "", location.pathname);
+    startLevel(level());
   }
+
+  /* ------------------------------ endless ------------------------------ */
+
+  /* Endless levels are built by src/js/generator.js in a Web Worker so the
+     board keeps animating. Pages opened from file:// can't start workers;
+     there the level is built on the page instead. While a level is being
+     played, the next one of the same difficulty is already being built. */
+  const DIFF_LABEL = { easy: "Easy", medium: "Medium", hard: "Hard" };
+  const Builder = (function () {
+    let worker = null;
+    let nextId = 1;
+    const waiting = new Map();
+    const local = (msg) =>
+      new Promise((resolve) =>
+        setTimeout(() => {
+          const G = window.PrismGen;
+          resolve(
+            msg.code
+              ? G.fromCode(msg.code)
+              : G.makeLevel(msg.difficulty, msg.seed, 120000),
+          );
+        }, 30),
+      );
+    try {
+      worker = new Worker("src/js/endless-worker.js");
+      worker.onmessage = (e) => {
+        const done = waiting.get(e.data.id);
+        waiting.delete(e.data.id);
+        if (done) done(e.data.level);
+      };
+      worker.onerror = () => {
+        worker = null;
+        for (const [id, done] of waiting) {
+          waiting.delete(id);
+          done(undefined);
+        }
+      };
+    } catch (e) {
+      worker = null;
+    }
+    function request(msg) {
+      if (!worker) return local(msg);
+      return new Promise((resolve) => {
+        const id = nextId++;
+        waiting.set(id, resolve);
+        worker.postMessage({ ...msg, id });
+      }).then((lv) => (lv === undefined ? local(msg) : lv));
+    }
+    return { request };
+  })();
+
+  const randomSeed = () => 1 + Math.floor(Math.random() * 999999);
+
+  function prefetch(difficulty) {
+    state.prefetch = {
+      difficulty,
+      promise: Builder.request({ difficulty, seed: randomSeed() }),
+    };
+  }
+
+  async function playEndless(difficulty, code) {
+    if (state.busy) return;
+    if (el.dialog.open) el.dialog.close();
+    state.busy = true;
+    state.drag = null;
+    state.armed = null;
+    const label = code ? "that" : "a " + DIFF_LABEL[difficulty].toLowerCase();
+    el.status.classList.remove("win", "warn");
+    el.statusText.textContent = `Building ${label} level…`;
+    el.status.classList.add("busy");
+    el.next.hidden = true;
+    let lv = null;
+    if (code) lv = await Builder.request({ code });
+    else {
+      const pf = state.prefetch;
+      if (pf && pf.difficulty === difficulty) {
+        state.prefetch = null;
+        lv = await pf.promise;
+      }
+      if (!lv) lv = await Builder.request({ difficulty, seed: randomSeed() });
+    }
+    state.busy = false;
+    el.status.classList.remove("busy");
+    if (!lv) {
+      renderStatus();
+      if (code) showCodeError(true);
+      return;
+    }
+    state.endless = { difficulty: lv.difficulty, level: lv };
+    el.levelNo.textContent = `ENDLESS · ${DIFF_LABEL[lv.difficulty].toUpperCase()}`;
+    el.levelName.textContent = lv.name;
+    el.prev.disabled = false;
+    el.fwd.disabled = false;
+    el.prev.setAttribute("aria-label", "Back to the levels");
+    el.fwd.setAttribute("aria-label", "New level");
+    el.prev.title = "Back to the levels";
+    el.fwd.title = "New level";
+    history.replaceState(null, "", "#" + lv.code);
+    startLevel(lv);
+    renderEndless();
+    prefetch(lv.difficulty);
+  }
+
+  function showCodeError(show) {
+    el.codeError.hidden = !show;
+  }
+
+  function renderEndless() {
+    document.querySelectorAll("[data-diff]").forEach((b) => {
+      const n = state.endlessSolved[b.dataset.diff] || 0;
+      b.querySelector(".solved").textContent = `${n} solved`;
+    });
+    el.currentCode.hidden = !state.endless;
+    if (state.endless) el.codeText.textContent = state.endless.level.code;
+  }
+
+  document
+    .querySelectorAll("[data-diff]")
+    .forEach((b) =>
+      b.addEventListener("click", () => playEndless(b.dataset.diff)),
+    );
+  el.codeForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const code = el.codeInput.value.trim().toUpperCase();
+    if (!/^[EMH]-?\d{1,9}$/.test(code)) return showCodeError(true);
+    showCodeError(false);
+    playEndless(null, code);
+  });
+  el.copyCode.addEventListener("click", () => {
+    const link =
+      location.origin + location.pathname + "#" + state.endless.level.code;
+    const done = () => {
+      el.copyCode.textContent = "Copied";
+      setTimeout(() => (el.copyCode.textContent = "Copy link"), 1500);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText)
+      navigator.clipboard.writeText(link).then(done, () => {});
+  });
 
   /* Call after every change the player (or a hint) makes. */
   function update() {
@@ -163,7 +322,12 @@
     state.confirmed = true;
     state.holdSince = null;
     el.lit.classList.add("all");
-    if (!state.done.has(lv.id)) {
+    if (state.endless) {
+      const d = state.endless.difficulty;
+      state.endlessSolved[d] = (state.endlessSolved[d] || 0) + 1;
+      save("prism.endless", state.endlessSolved);
+      renderEndless();
+    } else if (!state.done.has(lv.id)) {
       state.done.add(lv.id);
       save("prism.done", [...state.done]);
     }
@@ -254,12 +418,14 @@
     }
   }
 
-  el.hint.addEventListener("click", giveHint);
+  el.hint.addEventListener("click", () => {
+    if (!state.busy) giveHint();
+  });
 
   /* ------------------------------ UI chrome ------------------------------ */
 
   function renderStatus() {
-    const last = state.level === L.LEVELS.length - 1;
+    const last = !state.endless && state.level === L.LEVELS.length - 1;
     const won = state.confirmed;
     const res = state.result;
     const holding = res.solved && !won;
@@ -278,6 +444,7 @@
             ? "Stuck? The hint button places one piece in its correct spot."
             : level().hint;
     el.next.hidden = !won || last;
+    el.next.textContent = state.endless ? "New level →" : "Next level →";
     el.hint.disabled = won;
   }
 
@@ -289,7 +456,8 @@
       b.type = "button";
       const solved = state.done.has(lv.id);
       b.className = "level-cell" + (solved ? " done" : "");
-      if (i === state.level) b.setAttribute("aria-current", "true");
+      if (!state.endless && i === state.level)
+        b.setAttribute("aria-current", "true");
       b.setAttribute(
         "aria-label",
         `Level ${i + 1}, ${lv.name}${solved ? ", solved" : ""}`,
@@ -318,12 +486,16 @@
   el.dialog.addEventListener("click", (e) => {
     if (e.target === el.dialog) el.dialog.close();
   });
-  el.prev.addEventListener("click", () =>
-    loadLevel(Math.max(0, state.level - 1)),
-  );
-  el.fwd.addEventListener("click", () =>
-    loadLevel(Math.min(L.LEVELS.length - 1, state.level + 1)),
-  );
+  el.prev.addEventListener("click", () => {
+    if (state.busy) return;
+    if (state.endless) loadLevel(state.level);
+    else loadLevel(Math.max(0, state.level - 1));
+  });
+  el.fwd.addEventListener("click", () => {
+    if (state.endless) playEndless(state.endless.difficulty);
+    else if (!state.busy)
+      loadLevel(Math.min(L.LEVELS.length - 1, state.level + 1));
+  });
 
   const trayName = (id) => {
     const [type, mask] = id.split(":");
@@ -436,7 +608,7 @@
   el.board.addEventListener("pointerdown", (e) => {
     e.preventDefault();
     const c = cellAt(e.clientX, e.clientY);
-    if (!c || state.drag) return;
+    if (!c || state.drag || state.busy) return;
     const p = pieceAt(c.x, c.y);
     if (p) {
       state.drag = {
@@ -455,7 +627,7 @@
   });
 
   function startTrayDrag(e, id, chip) {
-    if (state.inv[id] <= 0 || state.drag) return;
+    if (state.inv[id] <= 0 || state.drag || state.busy) return;
     e.preventDefault();
     chip.setPointerCapture(e.pointerId);
     state.drag = {
@@ -539,9 +711,15 @@
     }
   });
 
-  el.reset.addEventListener("click", () => loadLevel(state.level));
+  el.reset.addEventListener("click", () => {
+    if (state.busy) return;
+    if (state.endless) startLevel(state.endless.level);
+    else loadLevel(state.level);
+  });
   el.next.addEventListener("click", () =>
-    loadLevel(Math.min(state.level + 1, L.LEVELS.length - 1)),
+    state.endless
+      ? playEndless(state.endless.difficulty)
+      : loadLevel(Math.min(state.level + 1, L.LEVELS.length - 1)),
   );
 
   /* ------------------------------ drawing ------------------------------ */
@@ -639,7 +817,10 @@
   readTheme();
   new ResizeObserver(layout).observe(el.stage);
   const savedLevel = Number(load("prism.level", 0));
+  const sharedCode = /^#([EMH]-\d{1,9})$/i.exec(location.hash);
   loadLevel(savedLevel >= 0 && savedLevel < L.LEVELS.length ? savedLevel : 0);
+  if (sharedCode) playEndless(null, sharedCode[1].toUpperCase());
+  renderEndless();
   applyTheme();
   layout();
   requestAnimationFrame(frame);
@@ -651,5 +832,6 @@
     theme,
     giveHint,
     loadLevel,
+    playEndless,
   };
 })();

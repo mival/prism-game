@@ -15,6 +15,10 @@
           document.documentElement.dataset.theme = saved;
       } catch (e) {}
     </script>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230a0c0f'/%3E%3Cpath d='M16 6 L27 25 H5 Z' fill='none' stroke='%23c8d1db' stroke-width='2.2' stroke-linejoin='round'/%3E%3Cpath d='M16 6 L27 25' stroke='%233d7bff' stroke-width='2.2'/%3E%3C/svg%3E"
+    />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -127,11 +131,48 @@
         <h2 id="levelDialogTitle">Levels</h2>
         <button class="icon-btn" type="submit" aria-label="Close">✕</button>
       </form>
+      <section class="endless" aria-labelledby="endlessTitle">
+        <h2 id="endlessTitle">Endless</h2>
+        <p>New levels, made on the spot. Each one has a code you can share.</p>
+        <div class="diff-row">
+          <button class="diff" type="button" data-diff="easy">
+            Easy<span class="solved">0 solved</span>
+          </button>
+          <button class="diff" type="button" data-diff="medium">
+            Medium<span class="solved">0 solved</span>
+          </button>
+          <button class="diff" type="button" data-diff="hard">
+            Hard<span class="solved">0 solved</span>
+          </button>
+        </div>
+        <form class="code-row" id="codeForm">
+          <label for="codeInput">Level code</label>
+          <input
+            id="codeInput"
+            name="code"
+            placeholder="M-48213"
+            autocomplete="off"
+            autocapitalize="characters"
+            spellcheck="false"
+          />
+          <button type="submit">Play</button>
+        </form>
+        <p class="code-error" id="codeError" hidden>
+          That code doesn't make a level. Codes are E, M or H, then a dash and a
+          number, like M-48213.
+        </p>
+        <p class="current-code" id="currentCode" hidden>
+          This level: <b id="codeText"></b>
+          <button type="button" id="copyCode">Copy link</button>
+        </p>
+      </section>
+
       <div class="level-grid" id="levelGrid"></div>
     </dialog>
 
     <script src="src/js/logic.js"></script>
     <script src="src/js/render.js"></script>
+    <script src="src/js/generator.js"></script>
     <script src="src/js/main.js"></script>
   </body>
 </html>
