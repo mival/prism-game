@@ -170,7 +170,86 @@
     return m ? m[0] : null;
   }
 
-  const api = { encode, decode, findCode, SAVE_IDS };
+  /* ------------------------------ this browser ------------------------------ */
+
+  function storage() {
+    try {
+      return root.localStorage || null;
+    } catch (e) {
+      return null;
+    }
+  }
+  function read(key, fallback) {
+    try {
+      const v = storage().getItem(key);
+      return v ? JSON.parse(v) : fallback;
+    } catch (e) {
+      return fallback;
+    }
+  }
+  function write(key, value) {
+    try {
+      storage().setItem(key, JSON.stringify(value));
+    } catch (e) {
+      /* progress just won't persist */
+    }
+  }
+
+  /* Progress saved in this browser. */
+  function readLocal() {
+    return {
+      done: read("prism.done", []),
+      endless: { easy: 0, medium: 0, hard: 0, ...read("prism.endless", {}) },
+      level: Number(read("prism.level", 0)) || 0,
+    };
+  }
+
+  /* Adds restored progress to this browser's: solved levels are joined and
+     Endless counts keep the higher number, so nothing is ever lost. */
+  function mergeLocal(p) {
+    const here = readLocal();
+    const done = new Set(here.done);
+    const before = done.size;
+    p.done.forEach((id) => done.add(id));
+    const endless = {};
+    for (const d of ["easy", "medium", "hard"])
+      endless[d] = Math.max(here.endless[d] || 0, p.endless[d] || 0);
+    write("prism.done", [...done]);
+    write("prism.endless", endless);
+    write("prism.level", p.level);
+    return {
+      added: done.size - before,
+      solved: p.done.length,
+      wins: p.endless.easy + p.endless.medium + p.endless.hard,
+    };
+  }
+
+  /* One sentence about a restore, for the page to show. */
+  function describeRestore(r) {
+    return (
+      `Restored ${r.solved} solved level${r.solved === 1 ? "" : "s"}` +
+      (r.added < r.solved ? ` (${r.added} new here)` : "") +
+      (r.wins ? ` and ${r.wins} Endless win${r.wins === 1 ? "" : "s"}` : "") +
+      "."
+    );
+  }
+
+  function resetLocal() {
+    write("prism.done", []);
+    write("prism.endless", { easy: 0, medium: 0, hard: 0 });
+    write("prism.level", 0);
+  }
+
+  const api = {
+    encode,
+    decode,
+    findCode,
+    readLocal,
+    mergeLocal,
+    describeRestore,
+    resetLocal,
+    SAVE_IDS,
+  };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.PrismProgress = api;
 })(typeof window !== "undefined" ? window : globalThis);

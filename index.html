@@ -71,15 +71,31 @@
             title="How to play"
             >?</a
           >
-          <button
+          <a
             class="icon-btn"
-            id="theme"
-            type="button"
-            aria-label="Theme: auto"
-            title="Theme: auto"
+            id="settings"
+            href="settings.html"
+            aria-label="Settings"
+            title="Settings"
           >
-            ◐
-          </button>
+            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+              <circle
+                cx="12"
+                cy="12"
+                r="3.2"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+              />
+              <path
+                d="M12 2.8v2.4M12 18.8v2.4M2.8 12h2.4M18.8 12h2.4M5.5 5.5l1.7 1.7M16.8 16.8l1.7 1.7M5.5 18.5l1.7-1.7M16.8 7.2l1.7-1.7"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+              />
+            </svg>
+          </a>
         </div>
       </header>
 
@@ -168,41 +184,6 @@
       </section>
 
       <div class="level-grid" id="levelGrid"></div>
-
-      <section class="progress" aria-labelledby="progressTitle">
-        <h2 id="progressTitle">Progress</h2>
-        <p>
-          To continue on another device, take this save code with you: copy it,
-          download it as a file, or copy a link that restores it.
-        </p>
-        <p class="save-code"><b id="saveCode"></b></p>
-        <div class="btn-row">
-          <button type="button" id="copySave">Copy code</button>
-          <button type="button" id="copySaveLink">Copy link</button>
-          <button type="button" id="downloadSave">Download file</button>
-        </div>
-        <form class="code-row" id="restoreForm">
-          <label for="restoreInput">Restore</label>
-          <input
-            id="restoreInput"
-            name="save"
-            placeholder="Save code"
-            autocomplete="off"
-            autocapitalize="characters"
-            spellcheck="false"
-          />
-          <button type="submit">Restore</button>
-        </form>
-        <div class="btn-row">
-          <label class="file-btn"
-            >Load a file<input
-              type="file"
-              id="restoreFile"
-              accept=".txt,text/plain"
-          /></label>
-        </div>
-        <p class="restore-msg" id="restoreMsg" aria-live="polite" hidden></p>
-      </section>
     </dialog>
 
     <script src="src/js/logic.js"></script>

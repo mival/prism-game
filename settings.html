@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#0a0c0f" />
+    <title>Prism · Settings</title>
+    <script>
+      try {
+        var saved = localStorage.getItem("prism.theme");
+        if (saved === "light" || saved === "dark")
+          document.documentElement.dataset.theme = saved;
+      } catch (e) {}
+    </script>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230a0c0f'/%3E%3Cpath d='M16 6 L27 25 H5 Z' fill='none' stroke='%23c8d1db' stroke-width='2.2' stroke-linejoin='round'/%3E%3Cpath d='M16 6 L27 25' stroke='%233d7bff' stroke-width='2.2'/%3E%3C/svg%3E"
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
+    />
+    <link rel="stylesheet" href="src/css/theme.css" />
+    <link rel="stylesheet" href="src/css/page.css" />
+  </head>
+  <body>
+    <main class="help">
+      <nav class="back"><a href="index.html">← Back to the game</a></nav>
+
+      <header>
+        <span class="eyebrow">PRISM · SETTINGS</span>
+        <h1>Settings</h1>
+      </header>
+
+      <section aria-labelledby="themeTitle">
+        <h2 id="themeTitle">Theme</h2>
+        <div class="panel">
+          <div class="segmented" role="radiogroup" aria-labelledby="themeTitle">
+            <label
+              ><input type="radio" name="theme" value="auto" /><span
+                >Auto</span
+              ></label
+            >
+            <label
+              ><input type="radio" name="theme" value="light" /><span
+                >Light</span
+              ></label
+            >
+            <label
+              ><input type="radio" name="theme" value="dark" /><span
+                >Dark</span
+              ></label
+            >
+          </div>
+          <p>Auto follows your device's light or dark setting.</p>
+        </div>
+      </section>
+
+      <section aria-labelledby="moveTitle">
+        <h2 id="moveTitle">Continue on another device</h2>
+        <div class="panel">
+          <p id="summary">Progress is saved in this browser.</p>
+          <p>
+            Open the link on the other device, or scan the QR code with its
+            camera. The game opens there with your progress added; nothing it
+            already has is removed.
+          </p>
+          <div class="actions">
+            <button
+              class="btn primary"
+              type="button"
+              id="showQr"
+              aria-expanded="false"
+              aria-controls="qr"
+            >
+              Show QR code
+            </button>
+            <button class="btn" type="button" id="copyLink">Copy link</button>
+            <button class="btn" type="button" id="shareLink" hidden>
+              Share…
+            </button>
+          </div>
+          <div class="qr" id="qr" hidden>
+            <div
+              class="code-box"
+              id="qrBox"
+              role="img"
+              aria-label="QR code with a link to your progress"
+            ></div>
+            <p>Scan with the other device's camera.</p>
+          </div>
+          <details class="more">
+            <summary>Save code and file</summary>
+            <div>
+              <p>
+                The same progress as a code you can type on the other device,
+                under Settings &gt; Restore. Dashes and spaces don't matter.
+              </p>
+              <div class="save-code" id="saveCode"></div>
+              <div class="actions">
+                <button class="btn" type="button" id="copyCode">
+                  Copy code
+                </button>
+                <button class="btn" type="button" id="download">
+                  Download file
+                </button>
+              </div>
+            </div>
+          </details>
+        </div>
+      </section>
+
+      <section aria-labelledby="restoreTitle">
+        <h2 id="restoreTitle">Restore</h2>
+        <div class="panel">
+          <p>Type a save code or load a save file from another device.</p>
+          <form class="field" id="restoreForm">
+            <label for="restoreInput" class="visually-hidden">Save code</label>
+            <input
+              id="restoreInput"
+              name="save"
+              placeholder="Save code"
+              autocomplete="off"
+              autocapitalize="characters"
+              spellcheck="false"
+            />
+            <button class="btn" type="submit">Restore</button>
+          </form>
+          <div class="actions">
+            <label class="btn file-btn"
+              >Load a file<input
+                type="file"
+                id="restoreFile"
+                accept=".txt,text/plain"
+            /></label>
+          </div>
+          <p class="msg" id="restoreMsg" aria-live="polite" hidden></p>
+        </div>
+      </section>
+
+      <section aria-labelledby="resetTitle">
+        <h2 id="resetTitle">Reset</h2>
+        <div class="panel">
+          <p>Remove all solved levels and Endless wins from this browser.</p>
+          <div class="actions" id="resetStart">
+            <button class="btn danger" type="button" id="reset">
+              Reset progress…
+            </button>
+          </div>
+          <div class="actions" id="resetConfirm" hidden>
+            <p><b>This can't be undone</b> unless you saved a code first.</p>
+            <button class="btn danger" type="button" id="resetYes">
+              Reset
+            </button>
+            <button class="btn" type="button" id="resetNo">Cancel</button>
+          </div>
+          <p class="msg" id="resetMsg" aria-live="polite" hidden></p>
+        </div>
+      </section>
+
+      <nav class="back bottom"><a href="index.html">← Back to the game</a></nav>
+    </main>
+
+    <script src="src/js/logic.js"></script>
+    <script src="src/js/progress.js"></script>
+    <script src="src/vendor/qrcode.js"></script>
+    <script src="src/js/settings.js"></script>
+  </body>
+</html>

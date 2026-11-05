@@ -16,7 +16,6 @@
     statusText: $("statusText"),
     next: $("next"),
     reset: $("reset"),
-    theme: $("theme"),
     hint: $("hint"),
     prev: $("prevLevel"),
     fwd: $("nextLevel"),
@@ -30,14 +29,6 @@
     currentCode: $("currentCode"),
     codeText: $("codeText"),
     copyCode: $("copyCode"),
-    saveCode: $("saveCode"),
-    copySave: $("copySave"),
-    copySaveLink: $("copySaveLink"),
-    downloadSave: $("downloadSave"),
-    restoreForm: $("restoreForm"),
-    restoreInput: $("restoreInput"),
-    restoreFile: $("restoreFile"),
-    restoreMsg: $("restoreMsg"),
   };
 
   const DRAG_START_PX = 8;
@@ -98,39 +89,15 @@
 
   /* ------------------------------ theme ------------------------------ */
 
-  const THEMES = [
-    { id: "auto", icon: "◐", label: "auto" },
-    { id: "light", icon: "☀", label: "light" },
-    { id: "dark", icon: "☾", label: "dark" },
-  ];
-
+  /* The theme is chosen on the Settings page; this applies it. */
   function applyTheme() {
     readTheme();
     document.querySelector('meta[name="theme-color"]').content =
       theme.themeColor;
-    const current = document.documentElement.dataset.theme || "auto";
-    const t = THEMES.find((x) => x.id === current);
-    el.theme.textContent = t.icon;
-    el.theme.title = `Theme: ${t.label}`;
-    el.theme.setAttribute("aria-label", `Theme: ${t.label}`);
     renderTray();
     state.baseDirty = true;
   }
 
-  el.theme.addEventListener("click", () => {
-    const current = document.documentElement.dataset.theme || "auto";
-    const next =
-      THEMES[(THEMES.findIndex((x) => x.id === current) + 1) % THEMES.length]
-        .id;
-    if (next === "auto") delete document.documentElement.dataset.theme;
-    else document.documentElement.dataset.theme = next;
-    try {
-      localStorage.setItem("prism.theme", next);
-    } catch (e) {
-      /* theme just won't persist */
-    }
-    applyTheme();
-  });
   window
     .matchMedia("(prefers-color-scheme: dark)")
     .addEventListener("change", applyTheme);
@@ -458,126 +425,31 @@
 
   /* ------------------------------ progress ------------------------------ */
 
-  /* Save codes (src/js/progress.js) carry progress to another device.
-     Restoring merges: solved levels are added and Endless counts keep the
-     higher number, so a restore never loses anything. */
+  /* Saving and restoring live on the Settings page (src/js/progress.js does
+     the work). A restore link opens this page with #restore-<code>. */
   const Progress = window.PrismProgress;
 
-  const saveCode = () =>
-    Progress.encode({
-      done: [...state.done],
-      endless: state.endlessSolved,
-      level: state.level,
-    });
-  const saveLink = () =>
-    location.origin +
-    location.pathname +
-    "#restore-" +
-    saveCode().replace(/-/g, "");
-
-  function renderProgress() {
-    el.saveCode.textContent = saveCode();
-  }
-
-  function flash(button, text) {
-    const old = button.textContent;
-    button.textContent = text;
-    setTimeout(() => (button.textContent = old), 1500);
-  }
-
-  function copy(text, button) {
-    if (navigator.clipboard && navigator.clipboard.writeText)
-      navigator.clipboard.writeText(text).then(
-        () => flash(button, "Copied"),
-        () => flash(button, "Select and copy it"),
-      );
-    else flash(button, "Select and copy it");
-  }
-
-  function restoreMessage(text, ok) {
-    el.restoreMsg.hidden = false;
-    el.restoreMsg.textContent = text;
-    el.restoreMsg.classList.toggle("ok", ok);
-    el.restoreMsg.classList.toggle("bad", !ok);
+  /* Re-reads progress saved in this browser, e.g. after Settings changed it. */
+  function reloadProgress() {
+    const p = Progress.readLocal();
+    state.done = new Set(p.done);
+    state.endlessSolved = p.endless;
+    renderLevels();
+    renderEndless();
   }
 
   /* Returns a sentence describing the result, and whether it worked. */
   function restore(code) {
     const p = code && Progress.decode(code);
-    if (!p)
-      return [
-        "That isn't a valid save code. Check it for typos; dashes and spaces don't matter.",
-        false,
-      ];
-    const before = state.done.size;
-    const known = new Set(L.LEVELS.map((l) => l.id));
-    p.done.filter((id) => known.has(id)).forEach((id) => state.done.add(id));
-    for (const d of ["easy", "medium", "hard"])
-      state.endlessSolved[d] = Math.max(
-        state.endlessSolved[d] || 0,
-        p.endless[d] || 0,
-      );
-    save("prism.done", [...state.done]);
-    save("prism.endless", state.endlessSolved);
-    const wins = p.endless.easy + p.endless.medium + p.endless.hard;
-    const added = state.done.size - before;
+    if (!p) return ["That restore link is damaged.", false];
+    const r = Progress.mergeLocal(p);
+    reloadProgress();
     if (!state.endless && p.level < L.LEVELS.length) loadLevel(p.level);
-    renderLevels();
-    renderEndless();
-    return [
-      `Restored ${p.done.length} solved level${p.done.length === 1 ? "" : "s"}` +
-        (added < p.done.length ? ` (${added} new here)` : "") +
-        (wins ? ` and ${wins} Endless win${wins === 1 ? "" : "s"}` : "") +
-        ".",
-      true,
-    ];
+    return [Progress.describeRestore(r), true];
   }
-
-  el.copySave.addEventListener("click", () => copy(saveCode(), el.copySave));
-  el.copySaveLink.addEventListener("click", () =>
-    copy(saveLink(), el.copySaveLink),
-  );
-  el.downloadSave.addEventListener("click", () => {
-    const text =
-      "Prism save code\n\n" +
-      saveCode() +
-      "\n\nTo continue on another device, open Prism, go to Levels > Progress,\n" +
-      "and load this file or type the code. Or open this link:\n" +
-      saveLink() +
-      "\n";
-    const url = URL.createObjectURL(new Blob([text], { type: "text/plain" }));
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `prism-save-${new Date().toISOString().slice(0, 10)}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  });
-  el.restoreForm.addEventListener("submit", (e) => {
-    e.preventDefault();
-    restoreMessage(...restore(el.restoreInput.value));
-  });
-  el.restoreFile.addEventListener("change", () => {
-    const file = el.restoreFile.files && el.restoreFile.files[0];
-    if (!file) return;
-    file.text().then(
-      (text) => {
-        const code = Progress.findCode(text);
-        restoreMessage(
-          ...(code
-            ? restore(code)
-            : ["That file doesn't contain a save code.", false]),
-        );
-        el.restoreFile.value = "";
-      },
-      () => restoreMessage("That file couldn't be read.", false),
-    );
-  });
 
   function renderLevels() {
     el.doneCount.textContent = `${state.done.size}/${L.LEVELS.length} done`;
-    renderProgress();
     el.grid.textContent = "";
     L.LEVELS.forEach((lv, i) => {
       const b = document.createElement("button");
@@ -606,8 +478,6 @@
   }
 
   el.levelsBtn.addEventListener("click", () => {
-    el.restoreMsg.hidden = true;
-    renderProgress();
     if (el.dialog.showModal) el.dialog.showModal();
     else el.dialog.setAttribute("open", "");
     const cur = el.grid.querySelector('[aria-current="true"]');
@@ -954,8 +824,8 @@
   if (restoreCode) {
     const [text, ok] = restore(restoreCode[1]);
     el.statusText.textContent = ok
-      ? text + " Your save code is under Levels > Progress."
-      : "That restore link is damaged. " + text;
+      ? text + " Settings has the save code for later."
+      : text + " Ask for a new one, or type the save code in Settings.";
     el.status.classList.toggle("win", ok);
     el.status.classList.toggle("warn", !ok);
     history.replaceState(null, "", location.pathname);
@@ -964,6 +834,24 @@
   applyTheme();
   layout();
   requestAnimationFrame(frame);
+
+  /* Coming back from Settings with the browser's back button can show this
+     page from memory without reloading it; pick up any theme or progress
+     changes made there. */
+  window.addEventListener("pageshow", (e) => {
+    if (!e.persisted) return;
+    let saved = null;
+    try {
+      saved = localStorage.getItem("prism.theme");
+    } catch (err) {
+      /* keep the current theme */
+    }
+    if (saved === "light" || saved === "dark")
+      document.documentElement.dataset.theme = saved;
+    else delete document.documentElement.dataset.theme;
+    applyTheme();
+    reloadProgress();
+  });
 
   window.__prism = {
     state,
@@ -974,6 +862,5 @@
     loadLevel,
     playEndless,
     restore,
-    saveCode,
   };
 })();

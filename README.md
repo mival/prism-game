@@ -21,7 +21,7 @@ There are 25 levels. From level 3 on, the tray also holds decoy pieces that no s
 
 ### Moving progress to another device
 
-Levels > Progress shows a save code such as `04FN-MNMS-VF63-RZ97-J19C-C1WG` that can be copied, downloaded as a text file, or shared as a link ending in `#restore-…`. Typing the code, loading the file or opening the link on another device restores the progress, merging with what is there. The format lives in `src/js/progress.js`: solved levels as bits in an append-only list of level ids, Endless wins and the last level, scrambled and protected by a checksum so typos and edited codes are rejected. It isn't encryption: the page has to be able to read its own codes.
+Settings (the gear button) shows a QR code and a link ending in `#restore-…` for the other device, plus a save code such as `04FN-MNMS-VF63-RZ97-J19C-C1WG` that can be copied or downloaded as a text file. Scanning the QR code, opening the link, typing the code or loading the file on another device restores the progress, merging with what is there. The format lives in `src/js/progress.js`: solved levels as bits in an append-only list of level ids, Endless wins and the last level, scrambled and protected by a checksum so typos and edited codes are rejected. It isn't encryption: the page has to be able to read its own codes.
 
 ### Endless mode
 
@@ -31,9 +31,9 @@ Each generated level has a code like `M-48213` (difficulty and seed). The same c
 
 ## Themes
 
-Every color, font, radius and glow setting lives in `src/css/theme.css`. The page styles and the canvas renderer both read those CSS variables, so changing a value there changes the game. Dark is the default; light follows the system setting, and the ◐ button switches between auto, light and dark.
+Every color, font, radius and glow setting lives in `src/css/theme.css`. The page styles and the canvas renderer both read those CSS variables, so changing a value there changes the game. Dark is the default; light follows the system setting, and Settings switches between auto, light and dark.
 
-To add a theme, copy the light block in `theme.css` under a new `:root[data-theme="..."]` selector, change the values, and add its name to `THEMES` in `src/js/main.js` so the theme button cycles to it. `--beam-blend: add` makes light glow on a dark board, and `over` paints it on a light one.
+To add a theme, copy the light block in `theme.css` under a new `:root[data-theme="..."]` selector, change the values, and add a radio with its name to the Theme group in `settings.html`. `--beam-blend: add` makes light glow on a dark board, and `over` paints it on a light one.
 
 ## Code
 
@@ -42,6 +42,9 @@ To add a theme, copy the light block in `theme.css` under a new `:root[data-them
 - `src/js/render.js` draws the pieces with Canvas 2D and composites the frame with WebGL, including a GPU bloom pass on the light layer. It falls back to Canvas 2D when WebGL is unavailable.
 - `src/js/main.js` handles layout, input, hints and the render loop.
 - `help.html` and `src/js/help.js` are the help page; its examples are tiny levels drawn by the same renderer.
+- `settings.html` and `src/js/settings.js` are the settings page: theme, moving progress, restore and reset. `src/css/page.css` styles both pages.
+- `src/js/progress.js` holds the save-code format and reads and merges progress in the browser.
+- `src/vendor/qrcode.js` is [qrcode-generator](https://github.com/kazuhikoarase/qrcode-generator) 2.0.4 (MIT), used for the QR code.
 
 Every level stores one known solution, used by the hint button. Levels 14–25 were made by a generator that builds a level backwards from a random intended solution; a search over all piece placements then checked each one: unsolved at the start, solvable, needing every intended piece, and with decoy pieces that add no new solutions.
 
