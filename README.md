@@ -19,6 +19,12 @@ There are 25 levels. From level 3 on, the tray also holds decoy pieces that no s
 
 `help.html` explains every item with an animated example.
 
+### Endless mode
+
+The level list also offers Endless: Easy, Medium or Hard levels generated on the spot by `src/js/generator.js`, running in a Web Worker (`src/js/endless-worker.js`) so the game keeps animating. Every generated level is checked before it is shown: not solved at the start, solvable with exactly the intended pieces, few solutions, and decoys that add none. The next level is built while you play the current one.
+
+Each generated level has a code like `M-48213` (difficulty and seed). The same code always gives the same level, and a link ending in `#M-48213` opens it directly. Pages opened from `file://` can't start workers, so there the level is built on the page.
+
 ## Themes
 
 Every color, font, radius and glow setting lives in `src/css/theme.css`. The page styles and the canvas renderer both read those CSS variables, so changing a value there changes the game. Dark is the default; light follows the system setting, and the ◐ button switches between auto, light and dark.

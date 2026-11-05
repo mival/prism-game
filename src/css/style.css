@@ -60,6 +60,9 @@ button:focus-visible {
 }
 .eyebrow {
   font-family: var(--mono);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-size: 11px;
   letter-spacing: 0.14em;
   color: var(--muted);
@@ -213,6 +216,107 @@ dialog#levelDialog::backdrop {
 }
 .level-cell[aria-current="true"] {
   border-color: var(--text);
+}
+
+.endless {
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.endless h2 {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+.endless p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+.diff-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+.diff {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+  background: var(--chip);
+  font-size: 13px;
+  font-weight: 600;
+}
+.diff .solved {
+  font-family: var(--sans);
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--muted);
+}
+.code-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.code-row label {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.code-row input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 34px;
+  padding: 0 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 14px;
+  text-transform: uppercase;
+  -webkit-user-select: text;
+  user-select: text;
+}
+.code-row input:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 1px;
+}
+.code-row button,
+.current-code button {
+  height: 34px;
+  padding: 0 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+  background: var(--chip);
+  font-size: 12px;
+}
+.code-error {
+  color: var(--warn) !important;
+}
+.current-code {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.current-code b {
+  font-family: var(--mono);
+  color: var(--text);
+  -webkit-user-select: text;
+  user-select: text;
+}
+.status.busy p {
+  color: var(--text);
 }
 
 /* ------------------------------ status ------------------------------ */
