@@ -19,6 +19,11 @@
       rel="icon"
       href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230a0c0f'/%3E%3Cpath d='M16 6 L27 25 H5 Z' fill='none' stroke='%23c8d1db' stroke-width='2.2' stroke-linejoin='round'/%3E%3Cpath d='M16 6 L27 25' stroke='%233d7bff' stroke-width='2.2'/%3E%3C/svg%3E"
     />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Prism" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -143,6 +148,26 @@
         </div>
       </section>
 
+      <section aria-labelledby="appTitle">
+        <h2 id="appTitle">App</h2>
+        <div class="panel">
+          <p id="appStatus">
+            Prism works offline once it has been opened here, and can be
+            installed like an app.
+          </p>
+          <div class="actions" id="installRow" hidden>
+            <button class="btn primary" type="button" id="install">
+              Install app
+            </button>
+          </div>
+          <p id="installIos" hidden>
+            On iPhone or iPad: tap <b>Share</b>, then <b>Add to Home Screen</b>.
+            The Home Screen app keeps its own progress, so copy your save code
+            above first and restore it there.
+          </p>
+        </div>
+      </section>
+
       <section aria-labelledby="resetTitle">
         <h2 id="resetTitle">Reset</h2>
         <div class="panel">
@@ -170,5 +195,6 @@
     <script src="src/js/progress.js"></script>
     <script src="src/vendor/qrcode.js"></script>
     <script src="src/js/settings.js"></script>
+    <script src="src/js/pwa.js"></script>
   </body>
 </html>
