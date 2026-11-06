@@ -17,7 +17,7 @@ Play it at https://mival.github.io/prism-game/
 
 On touch screens, tap a piece to turn it and drag to move it. With a mouse, pointing at a placed piece shows buttons to turn it either way, flip a prism or take it back to the tray; with the keyboard, the arrow keys move a cursor over the board, Enter places or turns, R and Shift+R turn, F flips and Delete takes a piece back.
 
-There are 50 levels, each tagged Easy, Medium or Hard. The tag is stored with the level (`difficulty` in `src/js/logic.js`); it started from a score of pieces needed, decoys, receivers, mechanics and solver effort, then was adjusted by playing. From level 3 on, the tray also holds decoy pieces that no solution uses. A level counts as finished once its solution has stayed correct for a moment; the rings around the receivers fill up while that happens. Progress is saved in the browser.
+There are 60 levels, each tagged Easy, Medium or Hard. The tag is stored with the level (`difficulty` in `src/js/logic.js`); it started from a score of pieces needed, decoys, receivers, mechanics and solver effort, then was adjusted by playing. From level 3 on, the tray also holds decoy pieces that no solution uses. A level counts as finished once its solution has stayed correct for a moment; the rings around the receivers fill up while that happens. Progress is saved in the browser.
 
 `help.html` explains every item with an animated example.
 
@@ -53,6 +53,6 @@ To add a theme, copy the light block in `theme.css` under a new `:root[data-them
 - `sw.js`, `src/js/pwa.js` and `manifest.webmanifest` make the game work offline and installable.
 - `src/vendor/qrcode.js` is [qrcode-generator](https://github.com/kazuhikoarase/qrcode-generator) 2.0.4 (MIT), used for the QR code.
 
-Every level stores one known solution, used by the hint button. Levels 14–50 were made by a generator that builds a level backwards from a random intended solution; a search over all piece placements then checked each one: unsolved at the start, solvable, needing every intended piece, and with decoy pieces that add no new solutions.
+Every level stores one known solution, used by the hint button. Levels 14–60 were made by a generator that builds a level backwards from a random intended solution; a search over all piece placements then checked each one: unsolved at the start, solvable, needing every intended piece, and with decoy pieces that add no new solutions.
 
 The site is a static page; `.github/workflows/pages.yml` deploys it to GitHub Pages on every push to `main`.
