@@ -15,6 +15,8 @@ Play it at https://mival.github.io/prism-game/
 - Dark sensors must receive no light at all. Light entering a portal leaves its twin. Fixed pieces (bolts in the corners) can be turned but not moved.
 - The bulb button gives a hint: it places one piece in its correct spot and locks it. After 30 seconds without a move, the bulb glows.
 
+On touch screens, tap a piece to turn it and drag to move it. With a mouse, pointing at a placed piece shows buttons to turn it either way, flip a prism or take it back to the tray; with the keyboard, the arrow keys move a cursor over the board, Enter places or turns, R and Shift+R turn, F flips and Delete takes a piece back.
+
 There are 50 levels. From level 3 on, the tray also holds decoy pieces that no solution uses. A level counts as finished once its solution has stayed correct for a moment; the rings around the receivers fill up while that happens. Progress is saved in the browser.
 
 `help.html` explains every item with an animated example.

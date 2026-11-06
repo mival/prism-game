@@ -44,6 +44,10 @@ button:focus-visible {
   outline-offset: 2px;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 /* ------------------------------ header ------------------------------ */
 .top {
   grid-area: top;
@@ -376,6 +380,7 @@ dialog#levelDialog::backdrop {
 /* ------------------------------ board ------------------------------ */
 .stage {
   grid-area: stage;
+  position: relative;
   min-height: 0;
   display: flex;
   align-items: center;
@@ -387,6 +392,67 @@ dialog#levelDialog::backdrop {
   box-shadow: 0 0 0 1px var(--line);
   touch-action: none;
   cursor: pointer;
+  outline: none;
+}
+#board:focus-visible {
+  box-shadow:
+    0 0 0 1px var(--line),
+    0 0 0 3px var(--text);
+}
+
+/* Keyboard cursor and the toolbar of actions for one placed piece. Both sit
+   over the board, positioned by main.js. */
+.cell-cursor {
+  position: absolute;
+  border: 2px solid var(--text);
+  border-radius: var(--radius-sm);
+  pointer-events: none;
+}
+.piece-tools {
+  position: absolute;
+  z-index: 2;
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line);
+  background: var(--panel);
+  box-shadow: 0 6px 18px rgb(0 0 0 / 0.28);
+}
+.piece-tools button {
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text);
+}
+.piece-tools button:hover {
+  background: var(--chip-active);
+}
+.piece-tools button.remove:hover {
+  color: var(--warn);
+}
+.piece-tools svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 /* ------------------------------ tray ------------------------------ */
