@@ -54,6 +54,21 @@
     "interference",
     "labyrinth",
     "big-bang",
+    "warp-drive",
+    "hall-of-mirrors",
+    "filter-bank",
+    "tricolor",
+    "switchback",
+    "eclipse",
+    "periscope",
+    "mirage",
+    "wavelength",
+    "binary-star",
+    "gatekeeper",
+    "refraction",
+    "overdrive",
+    "event-horizon",
+    "finale",
   ];
 
   const ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";

@@ -15,7 +15,7 @@ Play it at https://mival.github.io/prism-game/
 - Dark sensors must receive no light at all. Light entering a portal leaves its twin. Fixed pieces (bolts in the corners) can be turned but not moved.
 - The bulb button gives a hint: it places one piece in its correct spot and locks it. After 30 seconds without a move, the bulb glows.
 
-There are 35 levels. From level 3 on, the tray also holds decoy pieces that no solution uses. A level counts as finished once its solution has stayed correct for a moment; the rings around the receivers fill up while that happens. Progress is saved in the browser.
+There are 50 levels. From level 3 on, the tray also holds decoy pieces that no solution uses. A level counts as finished once its solution has stayed correct for a moment; the rings around the receivers fill up while that happens. Progress is saved in the browser.
 
 `help.html` explains every item with an animated example.
 
@@ -46,6 +46,6 @@ To add a theme, copy the light block in `theme.css` under a new `:root[data-them
 - `src/js/progress.js` holds the save-code format and reads and merges progress in the browser.
 - `src/vendor/qrcode.js` is [qrcode-generator](https://github.com/kazuhikoarase/qrcode-generator) 2.0.4 (MIT), used for the QR code.
 
-Every level stores one known solution, used by the hint button. Levels 14–35 were made by a generator that builds a level backwards from a random intended solution; a search over all piece placements then checked each one: unsolved at the start, solvable, needing every intended piece, and with decoy pieces that add no new solutions.
+Every level stores one known solution, used by the hint button. Levels 14–50 were made by a generator that builds a level backwards from a random intended solution; a search over all piece placements then checked each one: unsolved at the start, solvable, needing every intended piece, and with decoy pieces that add no new solutions.
 
 The site is a static page; `.github/workflows/pages.yml` deploys it to GitHub Pages on every push to `main`.
