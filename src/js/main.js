@@ -29,6 +29,8 @@
     currentCode: $("currentCode"),
     codeText: $("codeText"),
     copyCode: $("copyCode"),
+    tools: $("pieceTools"),
+    cursor: $("cellCursor"),
   };
 
   const DRAG_START_PX = 8;
@@ -109,6 +111,7 @@
     state.inv = { ...lv.tray };
     state.armed = null;
     state.drag = null;
+    hideTools();
     update();
   }
 
@@ -289,6 +292,7 @@
     renderStatus();
     renderTray();
     renderLevels();
+    syncTools();
     state.baseDirty = true;
   }
 
@@ -319,15 +323,24 @@
     update();
   }
 
-  function rotate(p) {
+  /* Turns a piece by `by` steps (negative turns it back). */
+  function rotate(p, by = 1) {
     const states = L.PIECES[p.type].states;
     if (states > 1 && !p.hinted) {
-      p.k = (p.k + 1) % states;
+      p.k = (((p.k + by) % states) + states) % states;
       update();
     }
   }
 
   const movable = (p) => !p.fixed && !p.hinted;
+
+  /* Takes a placed piece back to the tray. */
+  function takeBack(p) {
+    if (!movable(p)) return;
+    state.pieces = state.pieces.filter((q) => q !== p);
+    state.inv[p.trayId]++;
+    update();
+  }
 
   /* ------------------------------ hints ------------------------------ */
 
@@ -581,6 +594,7 @@
     el.board.style.height = (S * L.ROWS) / dpr + "px";
     state.S = S;
     state.baseDirty = true;
+    syncTools();
   }
 
   /* ------------------------------ input ------------------------------ */
@@ -649,6 +663,7 @@
     ) {
       d.active = true;
       state.armed = null;
+      hideTools();
       if (d.kind === "piece") {
         state.pieces = state.pieces.filter((p) => p !== d.piece);
         update();
@@ -709,6 +724,220 @@
       renderTray();
       state.baseDirty = true;
     }
+  });
+
+  /* ------------------------------ piece actions ------------------------------ */
+
+  /* With a mouse or the keyboard, a small toolbar beside a placed piece
+     offers its actions: turn it either way, flip a prism, or take it back to
+     the tray. Touch keeps tap-to-turn and drag, where a toolbar would only
+     cover the board. */
+  const svg = (d) => `<svg viewBox="0 0 24 24" aria-hidden="true">${d}</svg>`;
+  const ACTIONS = {
+    left: {
+      label: "Turn left (Shift+R)",
+      icon: svg(
+        '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>',
+      ),
+      run: (p) => rotate(p, -1),
+    },
+    right: {
+      label: "Turn right (R)",
+      icon: svg(
+        '<path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/>',
+      ),
+      run: (p) => rotate(p, 1),
+    },
+    flip: {
+      label: "Flip (F)",
+      icon: svg(
+        '<path d="M12 3v18" stroke-dasharray="2 3"/><path d="M8.5 7 3 17h5.5z"/><path d="M15.5 7 21 17h-5.5z"/>',
+      ),
+      run: (p) => rotate(p, 1),
+    },
+    remove: {
+      label: "Back to the tray (Delete)",
+      icon: svg(
+        '<path d="M4 7h16"/><path d="M10 11v6M14 11v6"/><path d="M6 7l1 13h10l1-13"/><path d="M9 7V4h6v3"/>',
+      ),
+      run: takeBack,
+    },
+  };
+
+  function actionsFor(p) {
+    if (!p || p.hinted) return [];
+    const n = L.PIECES[p.type].states;
+    const list = n > 2 ? ["left", "right"] : n === 2 ? ["flip"] : [];
+    if (movable(p)) list.push("remove");
+    return list;
+  }
+
+  /* tools.via is "mouse" or "key": what opened the toolbar. */
+  const tools = { piece: null, via: null, shown: "", hideTimer: 0 };
+
+  function cellBox(x, y) {
+    const b = el.board.getBoundingClientRect();
+    const s = el.stage.getBoundingClientRect();
+    const cs = b.width / L.COLS;
+    return { left: b.left - s.left + x * cs, top: b.top - s.top + y * cs, cs };
+  }
+
+  function showTools(p, via) {
+    clearTimeout(tools.hideTimer);
+    const list = actionsFor(p);
+    if (!list.length) return hideTools();
+    tools.piece = p;
+    tools.via = via;
+    const sig = list.join();
+    if (tools.shown !== sig) {
+      tools.shown = sig;
+      el.tools.innerHTML = "";
+      for (const name of list) {
+        const a = ACTIONS[name];
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = name;
+        b.title = a.label;
+        b.setAttribute("aria-label", a.label.replace(/ \(.*\)$/, ""));
+        b.innerHTML = a.icon;
+        b.addEventListener("click", () => {
+          const piece = tools.piece;
+          if (!piece) return;
+          a.run(piece);
+          // After taking a piece back, keyboard users stay on the board.
+          if (name === "remove" && tools.via === "key") el.board.focus();
+        });
+        el.tools.appendChild(b);
+      }
+    }
+    el.tools.hidden = false;
+    placeTools();
+  }
+
+  function placeTools() {
+    const p = tools.piece;
+    if (!p) return;
+    const c = cellBox(p.x, p.y);
+    const s = el.stage.getBoundingClientRect();
+    const w = el.tools.offsetWidth,
+      h = el.tools.offsetHeight;
+    const left = Math.max(0, Math.min(s.width - w, c.left + c.cs / 2 - w / 2));
+    // Above the piece, or below it when there is no room above.
+    let top = c.top - h - 4;
+    if (top < 0) top = c.top + c.cs + 4;
+    el.tools.style.left = left + "px";
+    el.tools.style.top = top + "px";
+  }
+
+  function hideTools() {
+    clearTimeout(tools.hideTimer);
+    tools.piece = null;
+    tools.via = null;
+    el.tools.hidden = true;
+  }
+
+  function hideToolsSoon() {
+    clearTimeout(tools.hideTimer);
+    tools.hideTimer = setTimeout(hideTools, 250);
+  }
+
+  /* After any change: follow the piece, or close if it is gone. */
+  function syncTools() {
+    placeCursor();
+    if (state.cursor && document.activeElement === el.board)
+      return showTools(pieceAt(state.cursor.x, state.cursor.y), "key");
+    const p = tools.piece;
+    if (!p) return;
+    if (!state.pieces.includes(p) || state.drag) hideTools();
+    else showTools(p, tools.via);
+  }
+
+  el.board.addEventListener("pointermove", (e) => {
+    if (e.pointerType !== "mouse" || state.drag) return;
+    const c = cellAt(e.clientX, e.clientY);
+    const p = c && pieceAt(c.x, c.y);
+    if (p && actionsFor(p).length) showTools(p, "mouse");
+    else if (tools.via === "mouse") hideToolsSoon();
+  });
+  el.board.addEventListener("pointerleave", () => {
+    if (tools.via === "mouse") hideToolsSoon();
+  });
+  el.tools.addEventListener("pointerenter", () =>
+    clearTimeout(tools.hideTimer),
+  );
+  el.tools.addEventListener("pointerleave", (e) => {
+    if (tools.via === "mouse" && !el.board.contains(e.relatedTarget))
+      hideToolsSoon();
+  });
+
+  /* ------------------------------ keyboard ------------------------------ */
+
+  /* The board is focusable: arrow keys move a cursor over the tiles. */
+  function placeCursor() {
+    const k = state.cursor;
+    if (!k || document.activeElement !== el.board) {
+      el.cursor.hidden = true;
+      return;
+    }
+    const c = cellBox(k.x, k.y);
+    el.cursor.hidden = false;
+    Object.assign(el.cursor.style, {
+      left: c.left + "px",
+      top: c.top + "px",
+      width: c.cs + "px",
+      height: c.cs + "px",
+    });
+  }
+
+  el.board.addEventListener("focus", () => {
+    if (!el.board.matches(":focus-visible")) return;
+    if (!state.cursor)
+      state.cursor = { x: Math.floor(L.COLS / 2), y: Math.floor(L.ROWS / 2) };
+    syncTools();
+  });
+  el.board.addEventListener("blur", (e) => {
+    el.cursor.hidden = true;
+    if (tools.via === "key" && !el.tools.contains(e.relatedTarget)) hideTools();
+  });
+  el.tools.addEventListener("focusout", (e) => {
+    if (
+      tools.via === "key" &&
+      !el.tools.contains(e.relatedTarget) &&
+      e.relatedTarget !== el.board
+    )
+      hideTools();
+  });
+
+  const MOVES = {
+    ArrowLeft: [-1, 0],
+    ArrowRight: [1, 0],
+    ArrowUp: [0, -1],
+    ArrowDown: [0, 1],
+  };
+  el.board.addEventListener("keydown", (e) => {
+    if (state.busy || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (!state.cursor) state.cursor = { x: 0, y: 0 };
+    const k = state.cursor;
+    const p = pieceAt(k.x, k.y);
+    const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+    if (MOVES[e.key]) {
+      const [dx, dy] = MOVES[e.key];
+      k.x = Math.max(0, Math.min(L.COLS - 1, k.x + dx));
+      k.y = Math.max(0, Math.min(L.ROWS - 1, k.y + dy));
+      syncTools();
+    } else if (key === "Enter" || key === " ") {
+      if (p) rotate(p, 1);
+      else if (state.armed && L.isFree(level(), state.pieces, k.x, k.y))
+        place(state.armed, k.x, k.y);
+      else return;
+    } else if (key === "r" && p) {
+      rotate(p, e.shiftKey ? -1 : 1);
+    } else if (key === "f" && p && L.PIECES[p.type].states === 2) {
+      rotate(p, 1);
+    } else if ((key === "Delete" || key === "Backspace") && p) {
+      takeBack(p);
+    } else return;
+    e.preventDefault();
   });
 
   el.reset.addEventListener("click", () => {
