@@ -16,7 +16,6 @@
     statusText: $("statusText"),
     next: $("next"),
     reset: $("reset"),
-    theme: $("theme"),
     hint: $("hint"),
     prev: $("prevLevel"),
     fwd: $("nextLevel"),
@@ -90,39 +89,15 @@
 
   /* ------------------------------ theme ------------------------------ */
 
-  const THEMES = [
-    { id: "auto", icon: "◐", label: "auto" },
-    { id: "light", icon: "☀", label: "light" },
-    { id: "dark", icon: "☾", label: "dark" },
-  ];
-
+  /* The theme is chosen on the Settings page; this applies it. */
   function applyTheme() {
     readTheme();
     document.querySelector('meta[name="theme-color"]').content =
       theme.themeColor;
-    const current = document.documentElement.dataset.theme || "auto";
-    const t = THEMES.find((x) => x.id === current);
-    el.theme.textContent = t.icon;
-    el.theme.title = `Theme: ${t.label}`;
-    el.theme.setAttribute("aria-label", `Theme: ${t.label}`);
     renderTray();
     state.baseDirty = true;
   }
 
-  el.theme.addEventListener("click", () => {
-    const current = document.documentElement.dataset.theme || "auto";
-    const next =
-      THEMES[(THEMES.findIndex((x) => x.id === current) + 1) % THEMES.length]
-        .id;
-    if (next === "auto") delete document.documentElement.dataset.theme;
-    else document.documentElement.dataset.theme = next;
-    try {
-      localStorage.setItem("prism.theme", next);
-    } catch (e) {
-      /* theme just won't persist */
-    }
-    applyTheme();
-  });
   window
     .matchMedia("(prefers-color-scheme: dark)")
     .addEventListener("change", applyTheme);
@@ -446,6 +421,31 @@
     el.next.hidden = !won || last;
     el.next.textContent = state.endless ? "New level →" : "Next level →";
     el.hint.disabled = won;
+  }
+
+  /* ------------------------------ progress ------------------------------ */
+
+  /* Saving and restoring live on the Settings page (src/js/progress.js does
+     the work). A restore link opens this page with #restore-<code>. */
+  const Progress = window.PrismProgress;
+
+  /* Re-reads progress saved in this browser, e.g. after Settings changed it. */
+  function reloadProgress() {
+    const p = Progress.readLocal();
+    state.done = new Set(p.done);
+    state.endlessSolved = p.endless;
+    renderLevels();
+    renderEndless();
+  }
+
+  /* Returns a sentence describing the result, and whether it worked. */
+  function restore(code) {
+    const p = code && Progress.decode(code);
+    if (!p) return ["That restore link is damaged.", false];
+    const r = Progress.mergeLocal(p);
+    reloadProgress();
+    if (!state.endless && p.level < L.LEVELS.length) loadLevel(p.level);
+    return [Progress.describeRestore(r), true];
   }
 
   function renderLevels() {
@@ -818,12 +818,40 @@
   new ResizeObserver(layout).observe(el.stage);
   const savedLevel = Number(load("prism.level", 0));
   const sharedCode = /^#([EMH]-\d{1,9})$/i.exec(location.hash);
+  const restoreCode = /^#restore-([0-9A-Za-z]+)$/.exec(location.hash);
   loadLevel(savedLevel >= 0 && savedLevel < L.LEVELS.length ? savedLevel : 0);
   if (sharedCode) playEndless(null, sharedCode[1].toUpperCase());
+  if (restoreCode) {
+    const [text, ok] = restore(restoreCode[1]);
+    el.statusText.textContent = ok
+      ? text + " Settings has the save code for later."
+      : text + " Ask for a new one, or type the save code in Settings.";
+    el.status.classList.toggle("win", ok);
+    el.status.classList.toggle("warn", !ok);
+    history.replaceState(null, "", location.pathname);
+  }
   renderEndless();
   applyTheme();
   layout();
   requestAnimationFrame(frame);
+
+  /* Coming back from Settings with the browser's back button can show this
+     page from memory without reloading it; pick up any theme or progress
+     changes made there. */
+  window.addEventListener("pageshow", (e) => {
+    if (!e.persisted) return;
+    let saved = null;
+    try {
+      saved = localStorage.getItem("prism.theme");
+    } catch (err) {
+      /* keep the current theme */
+    }
+    if (saved === "light" || saved === "dark")
+      document.documentElement.dataset.theme = saved;
+    else delete document.documentElement.dataset.theme;
+    applyTheme();
+    reloadProgress();
+  });
 
   window.__prism = {
     state,
@@ -833,5 +861,6 @@
     giveHint,
     loadLevel,
     playEndless,
+    restore,
   };
 })();
