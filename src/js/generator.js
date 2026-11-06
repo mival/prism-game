@@ -456,10 +456,8 @@
     medium: { maxSolutions: 3, tighten: true, decoys: 2 },
     hard: { maxSolutions: 4, tighten: false, decoys: 2 },
   };
-  const DECOYS = [
-    "mirror",
-    "splitter",
-    "prism",
+  const PIECE_DECOYS = ["mirror", "splitter", "prism"];
+  const FILTER_DECOYS = [
     "filter:4",
     "filter:2",
     "filter:1",
@@ -549,14 +547,24 @@
       level = t.level;
       count = t.count;
     }
+    // Decoys: a spare mirror, splitter or prism first, since a filter is
+    // easy to rule out at a glance; a filter only fills a slot none of
+    // those can (each must add no solution and no shortcut).
     const decoys = [];
-    const pool = DECOYS.slice();
-    for (
-      let tries = 0;
-      tries < 3 && decoys.length < limits.decoys && pool.length;
-      tries++
-    ) {
-      const id = pool.splice(Math.floor(r() * pool.length), 1)[0];
+    const rd = rng(seed * 13 + 5);
+    const shuffle = (list) => {
+      const a = list.slice();
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(rd() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    };
+    const order = shuffle(PIECE_DECOYS).concat(
+      shuffle(FILTER_DECOYS).slice(0, 2),
+    );
+    for (const id of order) {
+      if (decoys.length >= limits.decoys) break;
       if (isCleanDecoy(level, a.fewest, count, id)) {
         decoys.push(id);
         level = {
