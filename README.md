@@ -53,6 +53,6 @@ To add a theme, copy the light block in `theme.css` under a new `:root[data-them
 - `sw.js`, `src/js/pwa.js` and `manifest.webmanifest` make the game work offline and installable.
 - `src/vendor/qrcode.js` is [qrcode-generator](https://github.com/kazuhikoarase/qrcode-generator) 2.0.4 (MIT), used for the QR code.
 
-Every level stores one known solution, used by the hint button. Levels 14–60 were made by a generator that builds a level backwards from a random intended solution; a search over all piece placements then checked each one: unsolved at the start, solvable, needing every intended piece, and with decoy pieces that add no new solutions.
+Every level stores one known solution, used by the hint button. Levels 14–60 were made by a generator that builds a level backwards from a random intended solution; a search over all piece placements then checked each one: unsolved at the start, solvable, needing every intended piece, and with decoy pieces that add no new solutions. Decoys are spare mirrors, prisms and splitters wherever one fits cleanly, since a spare filter is easy to rule out at a glance; Endless levels follow the same rule.
 
 The site is a static page; `.github/workflows/pages.yml` deploys it to GitHub Pages on every push to `main`.

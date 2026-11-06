@@ -31,6 +31,11 @@
     codeText: $("codeText"),
     copyCode: $("copyCode"),
     tools: $("pieceTools"),
+    building: $("building"),
+    buildTitle: $("buildTitle"),
+    buildInfo: $("buildInfo"),
+    buildProgress: $("buildProgress"),
+    buildCancel: $("buildCancel"),
     cursor: $("cellCursor"),
   };
 
@@ -119,6 +124,10 @@
   function loadLevel(i) {
     state.level = i;
     state.endless = null;
+    if (state.prefetch) {
+      state.prefetch.job.cancel();
+      state.prefetch = null;
+    }
     // The word "LEVEL" is dropped on narrow screens to leave room for the
     // difficulty tag.
     el.levelNo.innerHTML =
@@ -154,12 +163,21 @@
     el.levelDiff.textContent = DIFF_LABEL[d];
     el.levelDiff.className = "rating " + d;
   }
+  /* Builds Endless levels in Web Workers. A new level is searched for on
+     several cores at once: each worker tries different seeds and the first
+     level found wins (its code is its own seed, so any winner is valid).
+     A code rebuilds exactly one seed, on one worker. Without workers
+     (file://) the level is built on the page. Each build can be cancelled. */
   const Builder = (function () {
-    let worker = null;
-    let nextId = 1;
-    const waiting = new Map();
-    const local = (msg) =>
-      new Promise((resolve) =>
+    const SCRIPT = "src/js/endless-worker.js";
+    const CORES = Math.max(
+      1,
+      Math.min(4, (navigator.hardwareConcurrency || 2) - 1),
+    );
+    let supported = typeof Worker !== "undefined";
+
+    function local(msg) {
+      return new Promise((resolve) =>
         setTimeout(() => {
           const G = window.PrismGen;
           resolve(
@@ -169,42 +187,110 @@
           );
         }, 30),
       );
-    try {
-      worker = new Worker("src/js/endless-worker.js");
-      worker.onmessage = (e) => {
-        const done = waiting.get(e.data.id);
-        waiting.delete(e.data.id);
-        if (done) done(e.data.level);
-      };
-      worker.onerror = () => {
-        worker = null;
-        for (const [id, done] of waiting) {
-          waiting.delete(id);
-          done(undefined);
-        }
-      };
-    } catch (e) {
-      worker = null;
     }
-    function request(msg) {
-      if (!worker) return local(msg);
-      return new Promise((resolve) => {
-        const id = nextId++;
-        waiting.set(id, resolve);
-        worker.postMessage({ ...msg, id });
-      }).then((lv) => (lv === undefined ? local(msg) : lv));
+
+    /* Returns { promise, cancel }. The promise gives the level, or null if
+       none was found or the build was cancelled. */
+    function build(msg, { cores = 1, onProgress } = {}) {
+      let workers = [];
+      try {
+        if (supported)
+          for (let i = 0; i < (msg.code ? 1 : cores); i++)
+            workers.push(new Worker(SCRIPT));
+      } catch (e) {
+        supported = false;
+        workers.forEach((w) => w.terminate());
+        workers = [];
+      }
+      if (!workers.length) return { promise: local(msg), cancel() {} };
+
+      let finish;
+      const promise = new Promise((resolve) => (finish = resolve));
+      let done = false;
+      const end = (result) => {
+        if (done) return;
+        done = true;
+        workers.forEach((w) => w.terminate());
+        finish(result);
+      };
+      const tried = workers.map(() => 0);
+      let left = workers.length;
+      let failed = false;
+      workers.forEach((w, i) => {
+        w.onmessage = (e) => {
+          if ("tried" in e.data) {
+            tried[i] = e.data.tried;
+            if (onProgress) onProgress(tried.reduce((a, b) => a + b, 0));
+            return;
+          }
+          if (e.data.level) return end(e.data.level);
+          if (--left === 0) end(failed ? local(msg) : null);
+        };
+        w.onerror = (e) => {
+          e.preventDefault();
+          failed = true;
+          if (--left === 0) end(local(msg));
+        };
+        w.postMessage(
+          msg.code ? msg : { ...msg, seed: msg.seed + i, step: workers.length },
+        );
+      });
+      return { promise, cancel: () => end(null) };
     }
-    return { request };
+    return { build, CORES };
   })();
 
   const randomSeed = () => 1 + Math.floor(Math.random() * 999999);
 
+  /* The next level of the same difficulty is built in the background on
+     one core while the player plays, so "New level" is usually instant. */
   function prefetch(difficulty) {
-    state.prefetch = {
-      difficulty,
-      promise: Builder.request({ difficulty, seed: randomSeed() }),
-    };
+    if (state.prefetch) state.prefetch.job.cancel();
+    const job = Builder.build({ difficulty, seed: randomSeed() });
+    const pf = { difficulty, job, level: undefined };
+    job.promise.then((lv) => (pf.level = lv));
+    state.prefetch = pf;
   }
+
+  /* ------------------------------ building overlay ------------------------------ */
+
+  /* Shown over the board when a build takes more than a moment: what is
+     being built, roughly how long it takes, live progress, and Cancel. */
+  const TYPICAL = {
+    easy: "This takes a moment.",
+    medium: "This usually takes a second or two.",
+    hard: "Hard levels usually take a few seconds.",
+  };
+  const building = { job: null, timer: 0, tick: 0, started: 0, tried: 0 };
+
+  function showBuilding(title, difficulty) {
+    el.buildTitle.textContent = title;
+    el.buildInfo.textContent = difficulty
+      ? TYPICAL[difficulty]
+      : "Rebuilding the level from its code.";
+    el.buildProgress.textContent = "";
+    el.building.hidden = false;
+    building.tick = setInterval(renderProgress, 250);
+  }
+  function renderProgress() {
+    const s = Math.floor((performance.now() - building.started) / 1000);
+    const parts = [];
+    if (building.tried)
+      parts.push(
+        `${building.tried} layout${building.tried === 1 ? "" : "s"} tried`,
+      );
+    if (s >= 1) parts.push(`${s} s`);
+    el.buildProgress.textContent = parts.join(" · ");
+  }
+  function hideBuilding() {
+    clearTimeout(building.timer);
+    clearInterval(building.tick);
+    building.job = null;
+    el.building.hidden = true;
+  }
+  el.buildCancel.addEventListener("click", () => {
+    if (building.job) building.job.cancel();
+  });
 
   async function playEndless(difficulty, code) {
     if (state.busy) return;
@@ -213,19 +299,39 @@
     state.drag = null;
     state.armed = null;
     const label = code ? "that" : "a " + DIFF_LABEL[difficulty].toLowerCase();
+    const title = `Building ${label} level…`;
     el.status.classList.remove("win", "warn");
-    el.statusText.textContent = `Building ${label} level…`;
+    el.statusText.textContent = title;
     el.status.classList.add("busy");
     el.next.hidden = true;
+
     let lv = null;
-    if (code) lv = await Builder.request({ code });
-    else {
-      const pf = state.prefetch;
-      if (pf && pf.difficulty === difficulty) {
-        state.prefetch = null;
-        lv = await pf.promise;
-      }
-      if (!lv) lv = await Builder.request({ difficulty, seed: randomSeed() });
+    const pf = state.prefetch;
+    if (!code && pf && pf.difficulty === difficulty && pf.level) {
+      // Ready in the background: no wait at all.
+      lv = pf.level;
+      state.prefetch = null;
+    } else {
+      // Build now on every core; a half-done background build is dropped.
+      if (pf) pf.job.cancel();
+      state.prefetch = null;
+      building.started = performance.now();
+      building.tried = 0;
+      const job = Builder.build(
+        code ? { code } : { difficulty, seed: randomSeed() },
+        {
+          cores: Builder.CORES,
+          onProgress: (n) => (building.tried = n),
+        },
+      );
+      building.job = job;
+      // Only show the overlay if the wait is noticeable.
+      building.timer = setTimeout(
+        () => showBuilding(title, code ? null : difficulty),
+        300,
+      );
+      lv = await job.promise;
+      hideBuilding();
     }
     state.busy = false;
     el.status.classList.remove("busy");

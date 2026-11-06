@@ -239,8 +239,7 @@
       ],
       tray: {
         splitter: 1,
-        mirror: 2,
-        "filter:4": 1,
+        mirror: 3,
       },
       solution: {
         fixed: [],
@@ -296,10 +295,9 @@
       tray: {
         splitter: 1,
         mirror: 1,
-        prism: 1,
+        prism: 2,
         "filter:6": 1,
         "filter:3": 1,
-        "filter:5": 1,
       },
       solution: {
         fixed: [],
@@ -482,9 +480,8 @@
         [2, 7],
       ],
       tray: {
-        prism: 1,
+        prism: 2,
         mirror: 3,
-        "filter:5": 1,
       },
       solution: {
         fixed: [],
@@ -724,9 +721,8 @@
       ],
       tray: {
         splitter: 1,
-        mirror: 1,
-        "filter:6": 1,
-        "filter:2": 1,
+        mirror: 2,
+        prism: 1,
       },
       solution: {
         fixed: [],
@@ -963,9 +959,8 @@
         [5, 3],
       ],
       tray: {
-        mirror: 2,
+        mirror: 3,
         prism: 1,
-        "filter:6": 1,
       },
       solution: {
         fixed: [],
@@ -1083,7 +1078,7 @@
       tray: {
         splitter: 1,
         mirror: 2,
-        "filter:5": 1,
+        prism: 1,
       },
       solution: {
         fixed: [],
@@ -1140,8 +1135,7 @@
       ],
       tray: {
         splitter: 1,
-        mirror: 2,
-        "filter:4": 1,
+        mirror: 3,
       },
       solution: {
         fixed: [],
@@ -1194,9 +1188,8 @@
       ],
       portals: [[2, 2, 5, 0]],
       tray: {
-        prism: 1,
+        prism: 2,
         mirror: 2,
-        "filter:3": 1,
       },
       solution: {
         fixed: [],
@@ -1262,8 +1255,7 @@
       ],
       tray: {
         prism: 1,
-        mirror: 2,
-        "filter:6": 1,
+        mirror: 3,
       },
       solution: {
         fixed: [7],
@@ -1383,9 +1375,7 @@
       ],
       tray: {
         splitter: 1,
-        mirror: 2,
-        "filter:5": 1,
-        "filter:1": 1,
+        mirror: 4,
       },
       solution: {
         fixed: [],
@@ -1461,8 +1451,7 @@
       ],
       tray: {
         prism: 2,
-        splitter: 1,
-        "filter:2": 1,
+        splitter: 2,
       },
       solution: {
         fixed: [6],
@@ -1592,8 +1581,7 @@
       tray: {
         splitter: 1,
         prism: 1,
-        mirror: 2,
-        "filter:4": 1,
+        mirror: 3,
       },
       solution: {
         fixed: [],
@@ -1660,9 +1648,8 @@
       ],
       tray: {
         splitter: 1,
-        mirror: 1,
-        "filter:3": 1,
-        "filter:6": 1,
+        mirror: 2,
+        prism: 1,
       },
       solution: {
         fixed: [],
@@ -1732,7 +1719,7 @@
       ],
       tray: {
         mirror: 3,
-        "filter:3": 1,
+        prism: 1,
       },
       solution: {
         fixed: [7, 1],
@@ -1755,7 +1742,7 @@
     {
       id: "crossfire",
       name: "Crossfire",
-      difficulty: "medium",
+      difficulty: "hard",
       hint: "Three lasers: red, green and blue. The cyan receiver needs two of them to meet.",
       sources: [
         {
@@ -1800,7 +1787,7 @@
       ],
       tray: {
         mirror: 4,
-        "filter:4": 1,
+        prism: 1,
       },
       solution: {
         fixed: [],
@@ -1996,9 +1983,8 @@
       sensors: [[2, 7]],
       tray: {
         splitter: 1,
-        prism: 1,
+        prism: 2,
         mirror: 2,
-        "filter:5": 1,
       },
       solution: {
         fixed: [],
@@ -2061,9 +2047,8 @@
       ],
       sensors: [[6, 2]],
       tray: {
-        prism: 3,
+        prism: 4,
         mirror: 1,
-        "filter:6": 1,
       },
       solution: {
         fixed: [],
@@ -2136,10 +2121,8 @@
         [3, 0],
       ],
       tray: {
-        splitter: 2,
+        splitter: 4,
         mirror: 1,
-        "filter:4": 1,
-        "filter:3": 1,
       },
       solution: {
         fixed: [],
@@ -2199,9 +2182,8 @@
         [4, 5],
       ],
       tray: {
-        mirror: 4,
+        mirror: 5,
         prism: 1,
-        "filter:4": 1,
       },
       solution: {
         fixed: [],
@@ -2283,10 +2265,8 @@
       ],
       tray: {
         splitter: 1,
-        prism: 1,
-        mirror: 1,
-        "filter:4": 1,
-        "filter:6": 1,
+        prism: 2,
+        mirror: 2,
       },
       solution: {
         fixed: [6],
@@ -2353,8 +2333,7 @@
       ],
       tray: {
         prism: 2,
-        mirror: 1,
-        "filter:4": 1,
+        mirror: 2,
       },
       solution: {
         fixed: [],
@@ -2420,9 +2399,8 @@
         },
       ],
       tray: {
-        mirror: 2,
-        "filter:3": 1,
-        "filter:4": 1,
+        mirror: 3,
+        prism: 1,
       },
       solution: {
         fixed: [2, 5],
@@ -2478,10 +2456,9 @@
         [6, 6],
       ],
       tray: {
-        "filter:1": 2,
+        "filter:1": 1,
         splitter: 1,
-        mirror: 1,
-        "filter:4": 1,
+        mirror: 3,
       },
       solution: {
         fixed: [],
@@ -2558,9 +2535,7 @@
       sensors: [[2, 4]],
       tray: {
         splitter: 1,
-        mirror: 2,
-        "filter:5": 1,
-        "filter:1": 1,
+        mirror: 4,
       },
       solution: {
         fixed: [],
@@ -2628,10 +2603,9 @@
         [3, 0],
       ],
       tray: {
-        mirror: 2,
+        mirror: 3,
         splitter: 1,
-        "filter:5": 1,
-        "filter:3": 1,
+        prism: 1,
       },
       solution: {
         fixed: [],
@@ -2691,9 +2665,8 @@
         [2, 2],
       ],
       tray: {
-        mirror: 3,
-        "filter:4": 1,
-        "filter:3": 1,
+        mirror: 4,
+        prism: 1,
       },
       solution: {
         fixed: [],
@@ -2757,10 +2730,9 @@
       ],
       portals: [[3, 1, 3, 5]],
       tray: {
-        mirror: 2,
+        mirror: 3,
         splitter: 1,
-        "filter:6": 1,
-        "filter:3": 1,
+        prism: 1,
       },
       solution: {
         fixed: [],
@@ -2823,7 +2795,7 @@
       ],
       tray: {
         mirror: 4,
-        "filter:3": 1,
+        prism: 1,
       },
       solution: {
         fixed: [],
@@ -2968,8 +2940,7 @@
       tray: {
         splitter: 1,
         mirror: 2,
-        prism: 1,
-        "filter:4": 1,
+        prism: 2,
       },
       solution: {
         fixed: [],
@@ -3037,9 +3008,7 @@
       sensors: [[3, 6]],
       tray: {
         splitter: 2,
-        mirror: 1,
-        "filter:1": 1,
-        "filter:6": 1,
+        mirror: 3,
       },
       solution: {
         fixed: [],
@@ -3103,9 +3072,8 @@
       ],
       sensors: [[2, 1]],
       tray: {
-        prism: 3,
+        prism: 4,
         mirror: 2,
-        "filter:2": 1,
       },
       solution: {
         fixed: [],
@@ -3185,9 +3153,8 @@
         },
       ],
       tray: {
-        prism: 1,
+        prism: 2,
         mirror: 3,
-        "filter:6": 1,
       },
       solution: {
         fixed: [6],
@@ -3256,10 +3223,8 @@
       portals: [[4, 6, 1, 4]],
       tray: {
         splitter: 1,
-        prism: 1,
-        mirror: 1,
-        "filter:4": 1,
-        "filter:2": 1,
+        prism: 2,
+        mirror: 2,
       },
       solution: {
         fixed: [],
@@ -3338,10 +3303,8 @@
       ],
       tray: {
         splitter: 1,
-        prism: 1,
-        mirror: 1,
-        "filter:3": 1,
-        "filter:1": 1,
+        prism: 2,
+        mirror: 2,
       },
       solution: {
         fixed: [3],
@@ -3400,9 +3363,8 @@
       ],
       tray: {
         splitter: 1,
-        mirror: 1,
-        "filter:6": 1,
-        "filter:1": 1,
+        mirror: 2,
+        prism: 1,
       },
       solution: {
         fixed: [],
@@ -3451,9 +3413,8 @@
       ],
       sensors: [[4, 7]],
       tray: {
-        mirror: 2,
-        "filter:2": 1,
-        "filter:5": 1,
+        mirror: 3,
+        prism: 1,
       },
       solution: {
         fixed: [],
@@ -3503,9 +3464,8 @@
       sensors: [[4, 8]],
       portals: [[5, 6, 3, 1]],
       tray: {
-        mirror: 2,
-        "filter:2": 1,
-        "filter:1": 1,
+        mirror: 3,
+        prism: 1,
       },
       solution: {
         fixed: [],
@@ -3565,8 +3525,7 @@
       ],
       tray: {
         splitter: 1,
-        mirror: 2,
-        "filter:6": 1,
+        mirror: 3,
       },
       solution: {
         fixed: [],
@@ -3622,10 +3581,8 @@
         [3, 5],
       ],
       tray: {
-        prism: 1,
-        mirror: 2,
-        "filter:6": 1,
-        "filter:4": 1,
+        prism: 2,
+        mirror: 3,
       },
       solution: {
         fixed: [],
@@ -3690,10 +3647,8 @@
       ],
       sensors: [[5, 3]],
       tray: {
-        prism: 1,
-        mirror: 2,
-        "filter:3": 1,
-        "filter:6": 1,
+        prism: 2,
+        mirror: 3,
       },
       solution: {
         fixed: [],
@@ -3773,8 +3728,7 @@
       ],
       tray: {
         splitter: 1,
-        mirror: 3,
-        "filter:4": 1,
+        mirror: 4,
       },
       solution: {
         fixed: [],
@@ -3845,9 +3799,8 @@
       ],
       tray: {
         splitter: 1,
-        mirror: 2,
+        mirror: 3,
         prism: 1,
-        "filter:5": 1,
       },
       solution: {
         fixed: [4],
@@ -3923,8 +3876,7 @@
       ],
       tray: {
         splitter: 1,
-        mirror: 3,
-        "filter:5": 1,
+        mirror: 4,
       },
       solution: {
         fixed: [0],
@@ -4002,9 +3954,7 @@
       ],
       tray: {
         prism: 1,
-        mirror: 2,
-        "filter:3": 1,
-        "filter:2": 1,
+        mirror: 4,
       },
       solution: {
         fixed: [2],
