@@ -1755,7 +1755,7 @@
     {
       id: "crossfire",
       name: "Crossfire",
-      difficulty: "medium",
+      difficulty: "hard",
       hint: "Three lasers: red, green and blue. The cyan receiver needs two of them to meet.",
       sources: [
         {
