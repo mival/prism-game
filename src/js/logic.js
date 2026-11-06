@@ -1594,6 +1594,689 @@
         ],
       },
     },
+    {
+      id: "tunnels",
+      name: "Tunnels",
+      hint: "Two pairs of portals. One receiver is closer than it looks.",
+      sources: [
+        {
+          x: 0,
+          y: 7,
+          d: 0,
+          c: 7,
+        },
+      ],
+      receivers: [
+        {
+          x: 0,
+          y: 8,
+          c: 7,
+        },
+        {
+          x: 6,
+          y: 0,
+          c: 7,
+        },
+      ],
+      walls: [
+        [2, 4],
+        [4, 1],
+        [1, 1],
+        [2, 6],
+      ],
+      sensors: [
+        [2, 8],
+        [3, 7],
+      ],
+      portals: [
+        [2, 7, 4, 3],
+        [5, 3, 3, 5],
+      ],
+      tray: {
+        splitter: 1,
+        mirror: 1,
+        "filter:3": 1,
+        "filter:6": 1,
+      },
+      solution: {
+        fixed: [],
+        placed: [
+          {
+            id: "splitter",
+            x: 1,
+            y: 7,
+            k: 3,
+          },
+          {
+            id: "mirror",
+            x: 6,
+            y: 5,
+            k: 6,
+          },
+        ],
+      },
+    },
+    {
+      id: "lighthouse",
+      name: "Lighthouse",
+      hint: "Two fixed pieces to turn and two mirrors to place. Turn the fixed ones first and watch where the light goes.",
+      sources: [
+        {
+          x: 6,
+          y: 6,
+          d: 4,
+          c: 7,
+        },
+      ],
+      receivers: [
+        {
+          x: 6,
+          y: 5,
+          c: 7,
+        },
+        {
+          x: 0,
+          y: 0,
+          c: 7,
+        },
+      ],
+      walls: [
+        [4, 1],
+        [1, 2],
+        [4, 2],
+      ],
+      sensors: [
+        [2, 7],
+        [1, 8],
+      ],
+      fixed: [
+        {
+          type: "mirror",
+          x: 2,
+          y: 6,
+          k: 4,
+        },
+        {
+          type: "splitter",
+          x: 1,
+          y: 7,
+          k: 4,
+        },
+      ],
+      tray: {
+        mirror: 3,
+        "filter:3": 1,
+      },
+      solution: {
+        fixed: [7, 1],
+        placed: [
+          {
+            id: "mirror",
+            x: 0,
+            y: 8,
+            k: 1,
+          },
+          {
+            id: "mirror",
+            x: 1,
+            y: 5,
+            k: 6,
+          },
+        ],
+      },
+    },
+    {
+      id: "crossfire",
+      name: "Crossfire",
+      hint: "Three lasers: red, green and blue. The cyan receiver needs two of them to meet.",
+      sources: [
+        {
+          x: 6,
+          y: 5,
+          d: 4,
+          c: 4,
+        },
+        {
+          x: 1,
+          y: 0,
+          d: 2,
+          c: 2,
+        },
+        {
+          x: 0,
+          y: 5,
+          d: 0,
+          c: 1,
+        },
+      ],
+      receivers: [
+        {
+          x: 0,
+          y: 0,
+          c: 3,
+        },
+        {
+          x: 6,
+          y: 6,
+          c: 4,
+        },
+      ],
+      walls: [
+        [3, 0],
+        [6, 7],
+        [0, 7],
+      ],
+      sensors: [
+        [0, 3],
+        [0, 2],
+      ],
+      tray: {
+        mirror: 4,
+        "filter:4": 1,
+      },
+      solution: {
+        fixed: [],
+        placed: [
+          {
+            id: "mirror",
+            x: 5,
+            y: 5,
+            k: 5,
+          },
+          {
+            id: "mirror",
+            x: 1,
+            y: 2,
+            k: 7,
+          },
+          {
+            id: "mirror",
+            x: 0,
+            y: 1,
+            k: 3,
+          },
+        ],
+      },
+    },
+    {
+      id: "afterglow",
+      name: "Afterglow",
+      hint: "Both receivers want white light. A splitter makes two white beams, and three sensors wait for any stray light.",
+      sources: [
+        {
+          x: 4,
+          y: 8,
+          d: 6,
+          c: 7,
+        },
+      ],
+      receivers: [
+        {
+          x: 6,
+          y: 0,
+          c: 7,
+        },
+        {
+          x: 0,
+          y: 4,
+          c: 7,
+        },
+      ],
+      walls: [
+        [5, 8],
+        [2, 5],
+        [6, 6],
+        [4, 5],
+      ],
+      sensors: [
+        [5, 1],
+        [3, 7],
+        [5, 0],
+      ],
+      tray: {
+        splitter: 1,
+        mirror: 3,
+        prism: 1,
+      },
+      solution: {
+        fixed: [],
+        placed: [
+          {
+            id: "mirror",
+            x: 4,
+            y: 7,
+            k: 5,
+          },
+          {
+            id: "mirror",
+            x: 6,
+            y: 5,
+            k: 5,
+          },
+          {
+            id: "splitter",
+            x: 6,
+            y: 4,
+            k: 2,
+          },
+        ],
+      },
+    },
+    {
+      id: "kaleidoscope",
+      name: "Kaleidoscope",
+      hint: "Magenta, green and blue. A splitter passes every color; a prism sorts them.",
+      sources: [
+        {
+          x: 4,
+          y: 0,
+          d: 2,
+          c: 7,
+        },
+      ],
+      receivers: [
+        {
+          x: 6,
+          y: 7,
+          c: 5,
+        },
+        {
+          x: 0,
+          y: 2,
+          c: 2,
+        },
+        {
+          x: 1,
+          y: 8,
+          c: 1,
+        },
+      ],
+      walls: [
+        [3, 4],
+        [2, 1],
+        [5, 2],
+      ],
+      sensors: [[3, 8]],
+      tray: {
+        prism: 2,
+        splitter: 1,
+        mirror: 2,
+      },
+      solution: {
+        fixed: [],
+        placed: [
+          {
+            id: "prism",
+            x: 4,
+            y: 5,
+            k: 0,
+          },
+          {
+            id: "mirror",
+            x: 4,
+            y: 6,
+            k: 7,
+          },
+          {
+            id: "splitter",
+            x: 2,
+            y: 7,
+            k: 3,
+          },
+        ],
+      },
+    },
+    {
+      id: "color-wheel",
+      name: "Color Wheel",
+      hint: "A blue glass door guards one receiver. Split the white beam before you break it into colors.",
+      sources: [
+        {
+          x: 3,
+          y: 0,
+          d: 2,
+          c: 7,
+        },
+      ],
+      receivers: [
+        {
+          x: 3,
+          y: 8,
+          c: 1,
+        },
+        {
+          x: 6,
+          y: 3,
+          c: 2,
+        },
+        {
+          x: 0,
+          y: 4,
+          c: 4,
+        },
+      ],
+      walls: [
+        [5, 1],
+        [6, 2],
+        [4, 5],
+        [1, 4],
+      ],
+      doors: [[3, 7, 1]],
+      sensors: [[2, 7]],
+      tray: {
+        splitter: 1,
+        prism: 1,
+        mirror: 2,
+        "filter:5": 1,
+      },
+      solution: {
+        fixed: [],
+        placed: [
+          {
+            id: "splitter",
+            x: 3,
+            y: 3,
+            k: 6,
+          },
+          {
+            id: "prism",
+            x: 1,
+            y: 3,
+            k: 0,
+          },
+          {
+            id: "mirror",
+            x: 0,
+            y: 3,
+            k: 4,
+          },
+        ],
+      },
+    },
+    {
+      id: "double-prism",
+      name: "Double Prism",
+      hint: "A prism also bends a single color: red and blue turn 45°, green goes straight on.",
+      sources: [
+        {
+          x: 1,
+          y: 8,
+          d: 6,
+          c: 7,
+        },
+      ],
+      receivers: [
+        {
+          x: 5,
+          y: 8,
+          c: 2,
+        },
+        {
+          x: 5,
+          y: 0,
+          c: 1,
+        },
+        {
+          x: 0,
+          y: 4,
+          c: 4,
+        },
+      ],
+      walls: [
+        [5, 2],
+        [0, 3],
+        [4, 8],
+      ],
+      sensors: [[6, 2]],
+      tray: {
+        prism: 3,
+        mirror: 1,
+        "filter:6": 1,
+      },
+      solution: {
+        fixed: [],
+        placed: [
+          {
+            id: "prism",
+            x: 1,
+            y: 5,
+            k: 0,
+          },
+          {
+            id: "mirror",
+            x: 1,
+            y: 4,
+            k: 7,
+          },
+          {
+            id: "prism",
+            x: 5,
+            y: 1,
+            k: 1,
+          },
+        ],
+      },
+    },
+    {
+      id: "interference",
+      name: "Interference",
+      hint: "Each laser has its own color, and there are two red receivers. One splitter is not enough.",
+      sources: [
+        {
+          x: 2,
+          y: 0,
+          d: 2,
+          c: 4,
+        },
+        {
+          x: 2,
+          y: 8,
+          d: 6,
+          c: 1,
+        },
+      ],
+      receivers: [
+        {
+          x: 1,
+          y: 0,
+          c: 4,
+        },
+        {
+          x: 1,
+          y: 8,
+          c: 1,
+        },
+        {
+          x: 6,
+          y: 0,
+          c: 4,
+        },
+      ],
+      walls: [
+        [6, 8],
+        [1, 5],
+        [4, 0],
+        [3, 3],
+      ],
+      sensors: [
+        [3, 2],
+        [3, 0],
+      ],
+      tray: {
+        splitter: 2,
+        mirror: 1,
+        "filter:4": 1,
+        "filter:3": 1,
+      },
+      solution: {
+        fixed: [],
+        placed: [
+          {
+            id: "splitter",
+            x: 2,
+            y: 1,
+            k: 7,
+          },
+          {
+            id: "mirror",
+            x: 2,
+            y: 7,
+            k: 1,
+          },
+          {
+            id: "splitter",
+            x: 6,
+            y: 3,
+            k: 5,
+          },
+        ],
+      },
+    },
+    {
+      id: "labyrinth",
+      name: "Labyrinth",
+      hint: "One beam, one receiver, four mirrors and three sensors. The long way round is the only way.",
+      sources: [
+        {
+          x: 6,
+          y: 6,
+          d: 4,
+          c: 7,
+        },
+      ],
+      receivers: [
+        {
+          x: 6,
+          y: 1,
+          c: 7,
+        },
+      ],
+      walls: [
+        [2, 7],
+        [6, 2],
+        [4, 7],
+        [5, 1],
+        [5, 4],
+        [5, 2],
+      ],
+      sensors: [
+        [6, 4],
+        [4, 6],
+        [4, 5],
+      ],
+      tray: {
+        mirror: 4,
+        prism: 1,
+        "filter:4": 1,
+      },
+      solution: {
+        fixed: [],
+        placed: [
+          {
+            id: "mirror",
+            x: 5,
+            y: 6,
+            k: 2,
+          },
+          {
+            id: "mirror",
+            x: 5,
+            y: 5,
+            k: 3,
+          },
+          {
+            id: "mirror",
+            x: 0,
+            y: 0,
+            k: 5,
+          },
+          {
+            id: "mirror",
+            x: 5,
+            y: 0,
+            k: 1,
+          },
+        ],
+      },
+    },
+    {
+      id: "big-bang",
+      name: "Big Bang",
+      hint: "Everything at once: a fixed mirror, a portal pair, a splitter and a prism. Start with the fixed mirror.",
+      sources: [
+        {
+          x: 0,
+          y: 6,
+          d: 0,
+          c: 7,
+        },
+      ],
+      receivers: [
+        {
+          x: 6,
+          y: 0,
+          c: 1,
+        },
+        {
+          x: 0,
+          y: 2,
+          c: 7,
+        },
+        {
+          x: 1,
+          y: 0,
+          c: 4,
+        },
+      ],
+      walls: [
+        [2, 8],
+        [0, 7],
+        [1, 8],
+      ],
+      sensors: [
+        [2, 7],
+        [3, 5],
+      ],
+      portals: [[4, 0, 1, 4]],
+      fixed: [
+        {
+          type: "mirror",
+          x: 4,
+          y: 6,
+          k: 7,
+        },
+      ],
+      tray: {
+        splitter: 1,
+        prism: 1,
+        mirror: 1,
+        "filter:4": 1,
+        "filter:6": 1,
+      },
+      solution: {
+        fixed: [6],
+        placed: [
+          {
+            id: "splitter",
+            x: 2,
+            y: 6,
+            k: 6,
+          },
+          {
+            id: "prism",
+            x: 2,
+            y: 4,
+            k: 0,
+          },
+          {
+            id: "mirror",
+            x: 1,
+            y: 3,
+            k: 3,
+          },
+        ],
+      },
+    },
   ];
 
   const key = (x, y) => x + "," + y;

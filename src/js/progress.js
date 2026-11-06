@@ -44,6 +44,16 @@
     "clockwork",
     "sieve",
     "supernova",
+    "tunnels",
+    "lighthouse",
+    "crossfire",
+    "afterglow",
+    "kaleidoscope",
+    "color-wheel",
+    "double-prism",
+    "interference",
+    "labyrinth",
+    "big-bang",
   ];
 
   const ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
