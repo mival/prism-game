@@ -31,6 +31,10 @@ The level list also offers Endless: Easy, Medium or Hard levels generated on the
 
 Each generated level has a code like `M-48213` (difficulty and seed). The same code always gives the same level, and a link ending in `#M-48213` opens it directly. Pages opened from `file://` can't start workers, so there the level is built on the page.
 
+### Offline and installing
+
+Prism is a Progressive Web App. `sw.js` caches every file on the first visit, so the game, including Endless mode, works offline; Settings has an Install button where the browser offers one (and the steps for iPhone). The game's files are fetched network-first, so a new version reaches players as soon as they are online. When adding a file the game loads, add it to `FILES` in `sw.js` and bump `VERSION`. `manifest.webmanifest` and `icons/` hold the app name and icons.
+
 ## Themes
 
 Every color, font, radius and glow setting lives in `src/css/theme.css`. The page styles and the canvas renderer both read those CSS variables, so changing a value there changes the game. Dark is the default; light follows the system setting, and Settings switches between auto, light and dark.
@@ -46,6 +50,7 @@ To add a theme, copy the light block in `theme.css` under a new `:root[data-them
 - `help.html` and `src/js/help.js` are the help page; its examples are tiny levels drawn by the same renderer.
 - `settings.html` and `src/js/settings.js` are the settings page: theme, moving progress, restore and reset. `src/css/page.css` styles both pages.
 - `src/js/progress.js` holds the save-code format and reads and merges progress in the browser.
+- `sw.js`, `src/js/pwa.js` and `manifest.webmanifest` make the game work offline and installable.
 - `src/vendor/qrcode.js` is [qrcode-generator](https://github.com/kazuhikoarase/qrcode-generator) 2.0.4 (MIT), used for the QR code.
 
 Every level stores one known solution, used by the hint button. Levels 14–50 were made by a generator that builds a level backwards from a random intended solution; a search over all piece placements then checked each one: unsolved at the start, solvable, needing every intended piece, and with decoy pieces that add no new solutions.
