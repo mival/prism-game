@@ -11,6 +11,7 @@
     tray: $("tray"),
     levelNo: $("levelNo"),
     levelName: $("levelName"),
+    levelDiff: $("levelDiff"),
     lit: $("lit"),
     status: $("status"),
     statusText: $("statusText"),
@@ -118,12 +119,15 @@
   function loadLevel(i) {
     state.level = i;
     state.endless = null;
-    el.levelNo.textContent =
-      "LEVEL " +
+    // The word "LEVEL" is dropped on narrow screens to leave room for the
+    // difficulty tag.
+    el.levelNo.innerHTML =
+      '<span class="lvl-word">LEVEL </span>' +
       String(i + 1).padStart(2, "0") +
       " / " +
       String(L.LEVELS.length).padStart(2, "0");
     el.levelName.textContent = level().name;
+    showDifficulty(level().difficulty);
     el.prev.disabled = i === 0;
     el.fwd.disabled = i === L.LEVELS.length - 1;
     el.prev.setAttribute("aria-label", "Previous level");
@@ -142,6 +146,14 @@
      there the level is built on the page instead. While a level is being
      played, the next one of the same difficulty is already being built. */
   const DIFF_LABEL = { easy: "Easy", medium: "Medium", hard: "Hard" };
+
+  /* The tag beside the level number: how hard this level is. */
+  function showDifficulty(d) {
+    el.levelDiff.hidden = !d;
+    if (!d) return;
+    el.levelDiff.textContent = DIFF_LABEL[d];
+    el.levelDiff.className = "rating " + d;
+  }
   const Builder = (function () {
     let worker = null;
     let nextId = 1;
@@ -223,8 +235,9 @@
       return;
     }
     state.endless = { difficulty: lv.difficulty, level: lv };
-    el.levelNo.textContent = `ENDLESS · ${DIFF_LABEL[lv.difficulty].toUpperCase()}`;
+    el.levelNo.textContent = "ENDLESS";
     el.levelName.textContent = lv.name;
+    showDifficulty(lv.difficulty);
     el.prev.disabled = false;
     el.fwd.disabled = false;
     el.prev.setAttribute("aria-label", "Back to the levels");
@@ -473,15 +486,21 @@
         b.setAttribute("aria-current", "true");
       b.setAttribute(
         "aria-label",
-        `Level ${i + 1}, ${lv.name}${solved ? ", solved" : ""}`,
+        `Level ${i + 1}, ${lv.name}, ${DIFF_LABEL[lv.difficulty]}${solved ? ", solved" : ""}`,
       );
       const num = document.createElement("span");
       num.className = "num";
       num.textContent = i + 1;
+      const diff = document.createElement("span");
+      diff.className = "rating " + lv.difficulty;
+      diff.textContent = DIFF_LABEL[lv.difficulty];
+      const head = document.createElement("span");
+      head.className = "head";
+      head.append(num, diff);
       const name = document.createElement("span");
       name.className = "nm";
       name.textContent = lv.name;
-      b.append(num, name);
+      b.append(head, name);
       b.addEventListener("click", () => {
         el.dialog.close();
         loadLevel(i);

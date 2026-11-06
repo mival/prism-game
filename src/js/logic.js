@@ -99,6 +99,7 @@
     {
       id: "first-light",
       name: "First Light",
+      difficulty: "easy",
       hint: "Place the mirror where it turns the beam down into the receiver. Tap a placed piece to rotate it.",
       sources: [
         {
@@ -139,6 +140,7 @@
     {
       id: "spectrum",
       name: "Spectrum",
+      difficulty: "easy",
       hint: "A prism splits white light into red, green and blue. Each receiver lights only for its own color.",
       sources: [
         {
@@ -203,6 +205,7 @@
     {
       id: "glass-doors",
       name: "Glass Doors",
+      difficulty: "easy",
       hint: "Colored glass walls let only their own color through. A splitter sends the beam two ways at once. From here on, not every piece in the tray is needed.",
       sources: [
         {
@@ -260,6 +263,7 @@
     {
       id: "recombine",
       name: "Recombine",
+      difficulty: "easy",
       hint: "Filters are glass you can place. They pass only the colors they show.",
       sources: [
         {
@@ -330,6 +334,7 @@
     {
       id: "echo",
       name: "Echo",
+      difficulty: "easy",
       hint: "A mirror hit head-on sends light straight back. Watch the arrows: returning light can take a new path.",
       sources: [
         {
@@ -385,6 +390,7 @@
     {
       id: "three-ways",
       name: "Three Ways",
+      difficulty: "easy",
       hint: "Three receivers, one beam. Each splitter sends part of the light off at an angle and lets the rest through.",
       sources: [
         {
@@ -444,6 +450,7 @@
     {
       id: "magenta",
       name: "Magenta",
+      difficulty: "medium",
       hint: "Colors add up. Red and blue arriving at the same receiver make magenta.",
       sources: [
         {
@@ -506,6 +513,7 @@
     {
       id: "detour",
       name: "Detour",
+      difficulty: "easy",
       hint: "A mirror turned one step less than square bends light by 45°. Find the way through the gap in the barrier.",
       sources: [
         {
@@ -565,6 +573,7 @@
     {
       id: "two-lasers",
       name: "Two Lasers",
+      difficulty: "easy",
       hint: "Two lasers, one receiver. A splitter also lets light through, so beams can share a path.",
       sources: [
         {
@@ -623,6 +632,7 @@
     {
       id: "mirror-image",
       name: "Mirror Image",
+      difficulty: "easy",
       hint: "Tap a prism to flip which side red and blue leave from.",
       sources: [
         {
@@ -681,6 +691,7 @@
     {
       id: "crossroads",
       name: "Crossroads",
+      difficulty: "easy",
       hint: "Red and green make yellow. Bring both lasers to the same receiver.",
       sources: [
         {
@@ -738,6 +749,7 @@
     {
       id: "rainbow",
       name: "Rainbow",
+      difficulty: "medium",
       hint: "Keep some white light and split the rest into its colors.",
       sources: [
         {
@@ -810,6 +822,7 @@
     {
       id: "daybreak",
       name: "Daybreak",
+      difficulty: "easy",
       hint: "Red, green and blue together make white. Send each one through its own glass door.",
       sources: [
         {
@@ -876,6 +889,7 @@
     {
       id: "wormhole",
       name: "Wormhole",
+      difficulty: "easy",
       hint: "Light that enters a portal leaves its twin, the other ring of the same color, still heading the same way.",
       sources: [
         {
@@ -919,6 +933,7 @@
     {
       id: "lights-out",
       name: "Lights Out",
+      difficulty: "easy",
       hint: "The octagons are dark sensors. Light the receiver without letting any light reach a sensor.",
       sources: [
         {
@@ -973,6 +988,7 @@
     {
       id: "fixed-point",
       name: "Fixed Point",
+      difficulty: "easy",
       hint: "Pieces with bolts in the corners are fixed: tap to turn them, but they cannot be moved.",
       sources: [
         {
@@ -1030,6 +1046,7 @@
     {
       id: "minefield",
       name: "Minefield",
+      difficulty: "medium",
       hint: "A splitter's second beam has to go somewhere too. Keep every sensor dark.",
       sources: [
         {
@@ -1089,6 +1106,7 @@
     {
       id: "stained-glass",
       name: "Stained Glass",
+      difficulty: "easy",
       hint: "Each glass door decides which color carries on. Follow the light to see which receiver it can reach.",
       sources: [
         {
@@ -1146,6 +1164,7 @@
     {
       id: "far-side",
       name: "Far Side",
+      difficulty: "easy",
       hint: "Not every color has to take the portal. Watch where each one goes after the prism.",
       sources: [
         {
@@ -1200,6 +1219,7 @@
     {
       id: "gearbox",
       name: "Gearbox",
+      difficulty: "hard",
       hint: "Start by turning the fixed splitter, then see where the prism belongs.",
       sources: [
         {
@@ -1266,6 +1286,7 @@
     {
       id: "relay",
       name: "Relay",
+      difficulty: "easy",
       hint: "Two pairs of portals. The color of the ring tells you which twin the light comes out of.",
       sources: [
         {
@@ -1323,6 +1344,7 @@
     {
       id: "twin-beams",
       name: "Twin Beams",
+      difficulty: "hard",
       hint: "Two lasers, each with its own color. Some receivers want both.",
       sources: [
         {
@@ -1392,6 +1414,7 @@
     {
       id: "clockwork",
       name: "Clockwork",
+      difficulty: "hard",
       hint: "One fixed mirror, one portal pair, a prism and a splitter all have to work together.",
       sources: [
         {
@@ -1462,6 +1485,7 @@
     {
       id: "sieve",
       name: "Sieve",
+      difficulty: "medium",
       hint: "Filters subtract colors. Split the beam, then let each part keep only what its receiver needs.",
       sources: [
         {
@@ -1526,6 +1550,7 @@
     {
       id: "supernova",
       name: "Supernova",
+      difficulty: "hard",
       hint: "Everything you have learned, in one level. Mind the sensors.",
       sources: [
         {
@@ -1597,6 +1622,7 @@
     {
       id: "tunnels",
       name: "Tunnels",
+      difficulty: "easy",
       hint: "Two pairs of portals. One receiver is closer than it looks.",
       sources: [
         {
@@ -1659,6 +1685,7 @@
     {
       id: "lighthouse",
       name: "Lighthouse",
+      difficulty: "hard",
       hint: "Two fixed pieces to turn and two mirrors to place. Turn the fixed ones first and watch where the light goes.",
       sources: [
         {
@@ -1728,6 +1755,7 @@
     {
       id: "crossfire",
       name: "Crossfire",
+      difficulty: "medium",
       hint: "Three lasers: red, green and blue. The cyan receiver needs two of them to meet.",
       sources: [
         {
@@ -1801,6 +1829,7 @@
     {
       id: "afterglow",
       name: "Afterglow",
+      difficulty: "medium",
       hint: "Both receivers want white light. A splitter makes two white beams, and three sensors wait for any stray light.",
       sources: [
         {
@@ -1865,6 +1894,7 @@
     {
       id: "kaleidoscope",
       name: "Kaleidoscope",
+      difficulty: "hard",
       hint: "Magenta, green and blue. A splitter passes every color; a prism sorts them.",
       sources: [
         {
@@ -1929,6 +1959,7 @@
     {
       id: "color-wheel",
       name: "Color Wheel",
+      difficulty: "hard",
       hint: "A blue glass door guards one receiver. Split the white beam before you break it into colors.",
       sources: [
         {
@@ -1996,6 +2027,7 @@
     {
       id: "double-prism",
       name: "Double Prism",
+      difficulty: "medium",
       hint: "A prism also bends a single color: red and blue turn 45°, green goes straight on.",
       sources: [
         {
@@ -2060,6 +2092,7 @@
     {
       id: "interference",
       name: "Interference",
+      difficulty: "hard",
       hint: "Each laser has its own color, and there are two red receivers. One splitter is not enough.",
       sources: [
         {
@@ -2135,6 +2168,7 @@
     {
       id: "labyrinth",
       name: "Labyrinth",
+      difficulty: "medium",
       hint: "One beam, one receiver, four mirrors and three sensors. The long way round is the only way.",
       sources: [
         {
@@ -2202,6 +2236,7 @@
     {
       id: "big-bang",
       name: "Big Bang",
+      difficulty: "hard",
       hint: "Everything at once: a fixed mirror, a portal pair, a splitter and a prism. Start with the fixed mirror.",
       sources: [
         {
@@ -2280,6 +2315,7 @@
     {
       id: "warp-drive",
       name: "Warp Drive",
+      difficulty: "easy",
       hint: "Two portal pairs and a prism. Red and blue each find their own way out.",
       sources: [
         {
@@ -2341,6 +2377,7 @@
     {
       id: "hall-of-mirrors",
       name: "Hall of Mirrors",
+      difficulty: "medium",
       hint: "Two fixed mirrors and two of your own. Sensors line the way.",
       sources: [
         {
@@ -2408,6 +2445,7 @@
     {
       id: "filter-bank",
       name: "Filter Bank",
+      difficulty: "medium",
       hint: "Both receivers want blue. Filters take colors away; a splitter makes a second beam.",
       sources: [
         {
@@ -2472,6 +2510,7 @@
     {
       id: "tricolor",
       name: "Tricolor",
+      difficulty: "hard",
       hint: "Red, green and blue lasers, but no receiver wants green. Keep it out of the way.",
       sources: [
         {
@@ -2550,6 +2589,7 @@
     {
       id: "switchback",
       name: "Switchback",
+      difficulty: "hard",
       hint: "Two red receivers, and a blue laser that must not spoil either of them.",
       sources: [
         {
@@ -2620,6 +2660,7 @@
     {
       id: "eclipse",
       name: "Eclipse",
+      difficulty: "medium",
       hint: "Five dark sensors and three mirrors. Every turn has to miss them.",
       sources: [
         {
@@ -2681,6 +2722,7 @@
     {
       id: "periscope",
       name: "Periscope",
+      difficulty: "medium",
       hint: "One portal pair and two white receivers. Split the light where both halves can still get home.",
       sources: [
         {
@@ -2747,6 +2789,7 @@
     {
       id: "mirage",
       name: "Mirage",
+      difficulty: "medium",
       hint: "Two portal pairs, three mirrors, one receiver. Light leaves a portal where you least expect it.",
       sources: [
         {
@@ -2809,6 +2852,7 @@
     {
       id: "wavelength",
       name: "Wavelength",
+      difficulty: "hard",
       hint: "Blue, green and yellow. Yellow is red and green arriving together.",
       sources: [
         {
@@ -2878,6 +2922,7 @@
     {
       id: "binary-star",
       name: "Binary Star",
+      difficulty: "hard",
       hint: "Two lasers and three receivers. One of them is easier than it looks.",
       sources: [
         {
@@ -2953,6 +2998,7 @@
     {
       id: "gatekeeper",
       name: "Gatekeeper",
+      difficulty: "medium",
       hint: "Two glass doors and two splitters. Each door decides which color gets through.",
       sources: [
         {
@@ -3022,6 +3068,7 @@
     {
       id: "refraction",
       name: "Refraction",
+      difficulty: "hard",
       hint: "Two prisms and two mirrors. Every receiver wants a single color.",
       sources: [
         {
@@ -3093,6 +3140,7 @@
     {
       id: "overdrive",
       name: "Overdrive",
+      difficulty: "hard",
       hint: "A fixed splitter feeds everything. The yellow receiver needs red and green to meet.",
       sources: [
         {
@@ -3168,6 +3216,7 @@
     {
       id: "event-horizon",
       name: "Event Horizon",
+      difficulty: "hard",
       hint: "A portal pair, a splitter and a prism. Two receivers want green, and they are far apart.",
       sources: [
         {
@@ -3239,6 +3288,7 @@
     {
       id: "finale",
       name: "Finale",
+      difficulty: "hard",
       hint: "The last level: a fixed mirror, a portal pair, a glass door, a splitter and a prism.",
       sources: [
         {
