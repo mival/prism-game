@@ -69,6 +69,16 @@
     "overdrive",
     "event-horizon",
     "finale",
+    "ricochet",
+    "lantern",
+    "pinhole",
+    "glass-house",
+    "aurora",
+    "dual-core",
+    "spectral-lock",
+    "night-shift",
+    "zenith",
+    "quasar",
   ];
 
   const ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
