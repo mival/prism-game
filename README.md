@@ -50,6 +50,7 @@ To add a theme, copy the light block in `theme.css` under a new `:root[data-them
 - `help.html` and `src/js/help.js` are the help page; its examples are tiny levels drawn by the same renderer.
 - `settings.html` and `src/js/settings.js` are the settings page: theme, moving progress, restore and reset. `src/css/page.css` styles both pages.
 - `src/js/progress.js` holds the save-code format and reads and merges progress in the browser.
+- `src/js/sound.js` synthesizes the sound effects with the Web Audio API (no audio files): each light color has a note, so receivers chime as they light and a solved board resolves into a chord. Settings has the on/off switch and volume.
 - `sw.js`, `src/js/pwa.js` and `manifest.webmanifest` make the game work offline and installable.
 - `src/vendor/qrcode.js` is [qrcode-generator](https://github.com/kazuhikoarase/qrcode-generator) 2.0.4 (MIT), used for the QR code.
 

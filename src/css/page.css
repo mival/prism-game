@@ -358,3 +358,27 @@ details.more > div {
   clip: rect(0 0 0 0);
   white-space: nowrap;
 }
+
+/* Sound settings: a checkbox row and a volume slider. */
+.toggle,
+.slider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  font-family: var(--mono);
+  font-size: 14px;
+}
+.toggle input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--text);
+}
+.slider input {
+  flex: 1;
+  min-width: 0;
+  accent-color: var(--text);
+}
+.slider input:disabled {
+  opacity: 0.4;
+}

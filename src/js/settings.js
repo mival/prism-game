@@ -35,6 +35,38 @@
     .matchMedia("(prefers-color-scheme: dark)")
     .addEventListener("change", syncThemeColor);
 
+  /* ------------------------------ sound ------------------------------ */
+
+  const Sound = window.PrismSound;
+  const soundOn = $("soundOn");
+  const soundVolume = $("soundVolume");
+  function renderSound() {
+    const s = Sound.settings();
+    soundOn.checked = s.on;
+    soundVolume.value = Math.round(s.volume * 100);
+    soundVolume.disabled = !s.on;
+    $("soundTest").disabled = !s.on;
+  }
+  /* Red, green and blue notes one after another, then the finishing chord. */
+  function sample() {
+    [4, 2, 1].forEach((c, i) => Sound.lit(c, i * 0.18));
+    setTimeout(() => Sound.solved(), 650);
+  }
+  soundOn.addEventListener("change", () => {
+    Sound.set({ on: soundOn.checked });
+    renderSound();
+    if (soundOn.checked) sample();
+  });
+  let previewTimer = 0;
+  soundVolume.addEventListener("input", () => {
+    Sound.set({ volume: soundVolume.value / 100 });
+    // A short note at the new level, once the slider settles.
+    clearTimeout(previewTimer);
+    previewTimer = setTimeout(() => Sound.lit(2), 120);
+  });
+  $("soundTest").addEventListener("click", sample);
+  renderSound();
+
   /* ------------------------------ progress ------------------------------ */
 
   const code = () => P.encode(P.readLocal());

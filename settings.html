@@ -66,6 +66,30 @@
         </div>
       </section>
 
+      <section aria-labelledby="soundTitle">
+        <h2 id="soundTitle">Sound</h2>
+        <div class="panel">
+          <label class="toggle"
+            ><input type="checkbox" id="soundOn" /><span
+              >Sound effects</span
+            ></label
+          >
+          <label class="slider" for="soundVolume"
+            ><span>Volume</span
+            ><input type="range" id="soundVolume" min="0" max="100" step="5"
+          /></label>
+          <p>
+            Each color has its own note: red, green and blue light play C, E and
+            G, so a finished board sounds like a chord.
+          </p>
+          <div class="actions">
+            <button class="btn" type="button" id="soundTest">
+              Play a sample
+            </button>
+          </div>
+        </div>
+      </section>
+
       <section aria-labelledby="moveTitle">
         <h2 id="moveTitle">Continue on another device</h2>
         <div class="panel">
@@ -194,6 +218,7 @@
     <script src="src/js/logic.js"></script>
     <script src="src/js/progress.js"></script>
     <script src="src/vendor/qrcode.js"></script>
+    <script src="src/js/sound.js"></script>
     <script src="src/js/settings.js"></script>
     <script src="src/js/pwa.js"></script>
   </body>
