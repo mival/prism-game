@@ -156,6 +156,17 @@
           or turns a placed one. R and Shift+R turn, F flips a prism, Delete
           takes a piece back to the tray.
         </p>
+        <div class="building" id="building" hidden>
+          <div class="building-card" role="status" aria-live="polite">
+            <div class="spinner" aria-hidden="true"></div>
+            <p class="building-title" id="buildTitle">Building a level…</p>
+            <p class="building-info" id="buildInfo"></p>
+            <p class="building-progress" id="buildProgress"></p>
+            <button class="btn-plain" type="button" id="buildCancel">
+              Cancel
+            </button>
+          </div>
+        </div>
         <div class="cell-cursor" id="cellCursor" hidden></div>
         <div
           class="piece-tools"

@@ -445,6 +445,81 @@ dialog#levelDialog::backdrop {
     0 0 0 3px var(--text);
 }
 
+/* Shown over the board while an Endless level is being built. */
+.building {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.building-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  max-width: 280px;
+  padding: 20px 22px 14px;
+  text-align: center;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--line);
+  background: var(--overlay);
+  box-shadow: 0 10px 30px rgb(0 0 0 / 0.3);
+}
+.building-card p {
+  margin: 0;
+}
+.building-title {
+  font-family: var(--mono);
+  font-weight: 600;
+}
+.building-info {
+  font-size: 13px;
+  color: var(--muted);
+}
+.building-progress {
+  min-height: 1.3em;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.spinner {
+  width: 34px;
+  height: 34px;
+  margin-bottom: 4px;
+  border-radius: 50%;
+  background: conic-gradient(
+    var(--beam-red),
+    var(--beam-green),
+    var(--beam-blue),
+    var(--beam-red)
+  );
+  -webkit-mask: radial-gradient(farthest-side, transparent 68%, #000 70%);
+  mask: radial-gradient(farthest-side, transparent 68%, #000 70%);
+  animation: spin 1.1s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(1turn);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation-duration: 4s;
+  }
+}
+.btn-plain {
+  margin-top: 4px;
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  font-size: 13px;
+}
+
 /* Keyboard cursor and the toolbar of actions for one placed piece. Both sit
    over the board, positioned by main.js. */
 .cell-cursor {

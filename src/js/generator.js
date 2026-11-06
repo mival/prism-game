@@ -583,12 +583,16 @@
     return level;
   }
 
-  /* Keeps trying seeds from `seed` on until one gives a level, or the time
-     budget runs out (then returns null). */
-  function makeLevel(difficulty, seed, budgetMs) {
+  /* Keeps trying seeds from `seed` on, `step` apart, until one gives a level
+     or the time budget runs out (then returns null). Several workers can
+     search side by side with different starts and the same step; whichever
+     level comes first is as valid as any, since its code is its own seed.
+     `onTry(n)` is told how many seeds have been tried so far. */
+  function makeLevel(difficulty, seed, budgetMs, step = 1, onTry) {
     const until = Date.now() + (budgetMs || 120000);
-    for (let s = seed; Date.now() < until; s++) {
+    for (let s = seed, n = 1; Date.now() < until; s += step, n++) {
       const level = tryLevel(difficulty, s);
+      if (onTry) onTry(n);
       if (level) return level;
     }
     return null;
