@@ -8,7 +8,7 @@
    without an answer. Fonts never change, so they come from the cache first.
 
    Bump VERSION when this list changes to replace the old cache. */
-const VERSION = "prism-v2";
+const VERSION = "prism-v3";
 const FILES = [
   "./",
   "index.html",
@@ -80,7 +80,9 @@ self.addEventListener("activate", (e) => {
 /* Network first; the cached copy if the network fails or is too slow. */
 async function fresh(request) {
   const cache = await caches.open(VERSION);
-  const network = fetch(request).then((res) => {
+  // "no-cache" asks the server every time (a cheap 304 when unchanged);
+  // without it, GitHub Pages' 10-minute caching could hand back old files.
+  const network = fetch(request, { cache: "no-cache" }).then((res) => {
     if (res.ok) cache.put(request, res.clone());
     return res;
   });
