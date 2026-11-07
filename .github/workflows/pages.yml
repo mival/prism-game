@@ -23,6 +23,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/configure-pages@v5
+      # Stamp this release: the pages carry the version they were built as,
+      # and version.json says what is newest, so an open app can tell when
+      # it is out of date.
+      - name: Stamp version
+        run: |
+          V="${GITHUB_SHA::7}"
+          D="$(date -u +%Y-%m-%d)"
+          echo "{ \"version\": \"$V\", \"date\": \"$D\" }" > version.json
+          sed -i "s|<meta name=\"prism-version\" content=\"dev\" data-date=\"\" />|<meta name=\"prism-version\" content=\"$V\" data-date=\"$D\" />|" index.html help.html settings.html
+          # A page left unstamped would always look out of date: stop instead.
+          for f in index.html help.html settings.html; do
+            grep -q "content=\"$V\"" "$f" || { echo "version not stamped in $f"; exit 1; }
+          done
+          cat version.json
       - uses: actions/upload-pages-artifact@v3
         with:
           path: .
