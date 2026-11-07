@@ -236,6 +236,9 @@
       done: read("prism.done", []),
       endless: { easy: 0, medium: 0, hard: 0, ...read("prism.endless", {}) },
       level: Number(read("prism.level", 0)) || 0,
+      // Fewest hints per solved level. Kept on this device only; save
+      // codes don't carry it, to keep them short.
+      hints: read("prism.hints", {}),
     };
   }
 
@@ -273,6 +276,8 @@
     write("prism.done", []);
     write("prism.endless", { easy: 0, medium: 0, hard: 0 });
     write("prism.level", 0);
+    write("prism.hints", {});
+    write("prism.attempt", { id: null, hints: 0 });
   }
 
   const api = {
