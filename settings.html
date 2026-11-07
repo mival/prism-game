@@ -7,6 +7,7 @@
       content="width=device-width, initial-scale=1.0, viewport-fit=cover"
     />
     <meta name="theme-color" content="#0a0c0f" />
+    <meta name="prism-version" content="dev" data-date="" />
     <title>Prism · Settings</title>
     <script>
       try {
@@ -189,6 +190,13 @@
             The Home Screen app keeps its own progress, so copy your save code
             above first and restore it there.
           </p>
+          <p class="version" id="versionInfo"></p>
+          <div class="actions">
+            <button class="btn" type="button" id="checkUpdate">
+              Check for updates
+            </button>
+          </div>
+          <p class="msg" id="updateMsg" aria-live="polite" hidden></p>
         </div>
       </section>
 

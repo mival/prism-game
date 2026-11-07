@@ -47,6 +47,21 @@ self.addEventListener("install", (e) => {
   );
 });
 
+/* "refresh" from the page: download every file again (bypassing the HTTP
+   cache), so an update is complete before the page reloads. */
+self.addEventListener("message", (e) => {
+  if (e.data !== "refresh") return;
+  e.waitUntil(
+    caches
+      .open(VERSION)
+      .then((c) =>
+        c.addAll(FILES.map((f) => new Request(f, { cache: "reload" }))),
+      )
+      .catch(() => {})
+      .then(() => e.source && e.source.postMessage("refreshed")),
+  );
+});
+
 self.addEventListener("activate", (e) => {
   e.waitUntil(
     caches
@@ -103,6 +118,8 @@ self.addEventListener("fetch", (e) => {
   const req = e.request;
   if (req.method !== "GET") return;
   const url = new URL(req.url);
+  // version.json says what is newest, so it must never come from a cache.
+  if (url.pathname.endsWith("/version.json")) return;
   if (url.origin === location.origin) e.respondWith(fresh(req));
   else if (
     url.hostname === "fonts.googleapis.com" ||

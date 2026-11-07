@@ -670,3 +670,46 @@ dialog#levelDialog::backdrop {
     max-width: 34px;
   }
 }
+
+/* "New version" banner, added by src/js/pwa.js. */
+.update-banner {
+  position: fixed;
+  z-index: 20;
+  left: 50%;
+  bottom: max(16px, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: max-content;
+  max-width: calc(100vw - 32px);
+  padding: 8px 8px 8px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line);
+  background: var(--overlay);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 14px;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.3);
+}
+.update-banner button {
+  font-family: var(--mono);
+  font-size: 13px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--text);
+  padding: 6px 10px;
+  cursor: pointer;
+}
+.update-banner .reload {
+  background: var(--text);
+  color: var(--bg);
+  border-color: var(--text);
+}
+.update-banner .close {
+  border: 0;
+  font-size: 18px;
+  line-height: 1;
+  padding: 4px 8px;
+}
