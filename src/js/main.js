@@ -44,6 +44,8 @@
      this long, so tapping pieces at random can't finish it by passing
      through a solved state on the way to the next rotation. */
   const SOLVE_HOLD_MS = 1500;
+  /* Sound effects (src/js/sound.js); every call is a no-op when muted. */
+  const Sound = window.PrismSound;
   /* After this long without a move, the hint button offers itself. */
   const STUCK_MS = 30000;
   const reduceMotion = window.matchMedia(
@@ -113,6 +115,8 @@
   /* ------------------------------ state ------------------------------ */
 
   function startLevel(lv) {
+    state.prevLit = null;
+    Sound.holdStop();
     state.pieces = L.fixedPieces(lv);
     state.inv = { ...lv.tray };
     state.armed = null;
@@ -396,6 +400,7 @@
   function update() {
     const lv = level();
     state.result = L.trace(lv, state.pieces);
+    playChanges(lv, state.result);
     const n = state.result.lit.filter(Boolean).length;
     el.lit.textContent = `${n} / ${lv.receivers.length} lit`;
     state.holdSince = state.result.solved ? performance.now() : null;
@@ -415,8 +420,27 @@
     state.baseDirty = true;
   }
 
+  /* Sounds for what the last change did to the light: a note for each
+     receiver that just lit, a buzz if a sensor was just hit, and the chord
+     that swells while a solved board holds. */
+  function playChanges(lv, r) {
+    if (state.prevLit) {
+      let n = 0;
+      r.lit.forEach((on, i) => {
+        if (on && !state.prevLit[i]) Sound.lit(lv.receivers[i].c, 0.07 * n++);
+      });
+      if (r.sensorHits.some((h, i) => h && !state.prevSensors[i]))
+        Sound.sensor();
+    }
+    state.prevLit = r.lit.slice();
+    state.prevSensors = r.sensorHits.slice();
+    Sound.holdStop();
+    if (r.solved) Sound.holdStart(SOLVE_HOLD_MS);
+  }
+
   function confirmSolved() {
     const lv = level();
+    Sound.solved();
     state.confirmed = true;
     state.holdSince = null;
     el.lit.classList.add("all");
@@ -438,6 +462,7 @@
     p.trayId = trayId;
     state.pieces.push(p);
     state.inv[trayId]--;
+    Sound.place();
     if (state.inv[trayId] <= 0) state.armed = null;
     update();
   }
@@ -446,6 +471,8 @@
   function rotate(p, by = 1) {
     const states = L.PIECES[p.type].states;
     if (states > 1 && !p.hinted) {
+      if (states === 2) Sound.flip();
+      else Sound.rotate();
       p.k = (((p.k + by) % states) + states) % states;
       update();
     }
@@ -458,6 +485,7 @@
     if (!movable(p)) return;
     state.pieces = state.pieces.filter((q) => q !== p);
     state.inv[p.trayId]++;
+    Sound.remove();
     update();
   }
 
@@ -470,6 +498,7 @@
      in place, further hints take extra pieces back to the tray. */
   function giveHint() {
     if (state.confirmed) return;
+    Sound.hint();
     const lv = level();
     const sol = lv.solution;
     const fixed = state.pieces.filter((p) => p.fixed);
@@ -787,6 +816,7 @@
       (d.kind === "tray" || movable(d.piece))
     ) {
       d.active = true;
+      Sound.pickup();
       state.armed = null;
       hideTools();
       if (d.kind === "piece") {
@@ -831,8 +861,10 @@
       p.x = c.x;
       p.y = c.y;
       state.pieces.push(p);
+      Sound.place();
     } else if (!cancelled && (!c || overTray(e.clientX, e.clientY))) {
       state.inv[p.trayId]++;
+      Sound.remove();
     } else {
       p.x = d.from.x;
       p.y = d.from.y;
