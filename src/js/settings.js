@@ -78,11 +78,12 @@
     const p = P.readLocal();
     const solved = p.done.filter((id) => L.LEVELS.some((l) => l.id === id));
     const wins = p.endless.easy + p.endless.medium + p.endless.hard;
-    $("summary").innerHTML =
-      `You've solved <b>${solved.length} of ${L.LEVELS.length}</b> levels` +
-      (wins
-        ? ` and <b>${wins}</b> Endless level${wins === 1 ? "" : "s"}.`
-        : ".");
+    const clean = solved.filter((id) => p.hints[id] === 0).length;
+    let text = `You've solved <b>${solved.length} of ${L.LEVELS.length}</b> levels`;
+    if (clean) text += `, <b>${clean}</b> of them without hints`;
+    if (wins)
+      text += `${clean ? "," : ""} and <b>${wins}</b> Endless level${wins === 1 ? "" : "s"}`;
+    $("summary").innerHTML = text + ".";
     $("saveCode").textContent = code();
     if (!$("qr").hidden) renderQr();
   }

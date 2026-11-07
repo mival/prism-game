@@ -23,7 +23,7 @@ There are 60 levels, each tagged Easy, Medium or Hard. The tag is stored with th
 
 ### Moving progress to another device
 
-Settings (the gear button) shows a QR code and a link ending in `#restore-…` for the other device, plus a save code such as `04FN-MNMS-VF63-RZ97-J19C-C1WG` that can be copied or downloaded as a text file. Scanning the QR code, opening the link, typing the code or loading the file on another device restores the progress, merging with what is there. The format lives in `src/js/progress.js`: solved levels as bits in an append-only list of level ids, Endless wins and the last level, scrambled and protected by a checksum so typos and edited codes are rejected. It isn't encryption: the page has to be able to read its own codes.
+Settings (the gear button) shows a QR code and a link ending in `#restore-…` for the other device, plus a save code such as `04FN-MNMS-VF63-RZ97-J19C-C1WG` that can be copied or downloaded as a text file. Scanning the QR code, opening the link, typing the code or loading the file on another device restores the progress, merging with what is there. The format lives in `src/js/progress.js`: solved levels as bits in an append-only list of level ids, Endless wins, the last level and (from format version 2) the fewest hints each solved level took, scrambled and protected by a checksum so typos and edited codes are rejected. It isn't encryption: the page has to be able to read its own codes.
 
 ### Endless mode
 

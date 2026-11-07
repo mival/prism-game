@@ -70,6 +70,11 @@
     lastMove: 0,
     stuck: false,
     done: new Set(load("prism.done", [])),
+    /* Fewest hints each campaign level was solved with: { id: count }. */
+    bestHints: load("prism.hints", {}),
+    /* Hints used on the level being played. Kept across Reset and page
+       reloads, so resetting after a hint doesn't make it a hint-free solve. */
+    attempt: load("prism.attempt", { id: null, hints: 0 }),
     endless: null,
     endlessSolved: load("prism.endless", { easy: 0, medium: 0, hard: 0 }),
     prefetch: null,
@@ -126,6 +131,10 @@
   }
 
   function loadLevel(i) {
+    if (state.attempt.id !== L.LEVELS[i].id) {
+      state.attempt = { id: L.LEVELS[i].id, hints: 0 };
+      save("prism.attempt", state.attempt);
+    }
     state.level = i;
     state.endless = null;
     if (state.prefetch) {
@@ -449,9 +458,20 @@
       state.endlessSolved[d] = (state.endlessSolved[d] || 0) + 1;
       save("prism.endless", state.endlessSolved);
       renderEndless();
-    } else if (!state.done.has(lv.id)) {
-      state.done.add(lv.id);
-      save("prism.done", [...state.done]);
+    } else {
+      if (!state.done.has(lv.id)) {
+        state.done.add(lv.id);
+        save("prism.done", [...state.done]);
+      }
+      // Keep the best (fewest hints) solve; replaying starts a new count.
+      const used = state.attempt.id === lv.id ? state.attempt.hints : 0;
+      const best = state.bestHints[lv.id];
+      if (best === undefined || used < best) {
+        state.bestHints[lv.id] = used;
+        save("prism.hints", state.bestHints);
+      }
+      state.attempt = { id: lv.id, hints: 0 };
+      save("prism.attempt", state.attempt);
     }
     renderStatus();
     renderLevels();
@@ -498,6 +518,10 @@
      in place, further hints take extra pieces back to the tray. */
   function giveHint() {
     if (state.confirmed) return;
+    if (!state.endless) {
+      state.attempt.hints++;
+      save("prism.attempt", state.attempt);
+    }
     Sound.hint();
     const lv = level();
     const sol = lv.solution;
@@ -595,6 +619,7 @@
     const p = Progress.readLocal();
     state.done = new Set(p.done);
     state.endlessSolved = p.endless;
+    state.bestHints = p.hints;
     renderLevels();
     renderEndless();
   }
@@ -619,9 +644,17 @@
       b.className = "level-cell" + (solved ? " done" : "");
       if (!state.endless && i === state.level)
         b.setAttribute("aria-current", "true");
+      const hints = solved ? state.bestHints[lv.id] : undefined;
+      const hintText =
+        hints === undefined
+          ? ""
+          : hints === 0
+            ? "no hints"
+            : `${hints} hint${hints === 1 ? "" : "s"}`;
       b.setAttribute(
         "aria-label",
-        `Level ${i + 1}, ${lv.name}, ${DIFF_LABEL[lv.difficulty]}${solved ? ", solved" : ""}`,
+        `Level ${i + 1}, ${lv.name}, ${DIFF_LABEL[lv.difficulty]}` +
+          (solved ? ", solved" + (hintText ? " with " + hintText : "") : ""),
       );
       const num = document.createElement("span");
       num.className = "num";
@@ -636,6 +669,12 @@
       name.className = "nm";
       name.textContent = lv.name;
       b.append(head, name);
+      if (hintText) {
+        const h = document.createElement("span");
+        h.className = "hints" + (hints === 0 ? " none" : "");
+        h.textContent = hints === 0 ? "no hints" : `💡 ${hintText}`;
+        b.append(h);
+      }
       b.addEventListener("click", () => {
         el.dialog.close();
         loadLevel(i);
