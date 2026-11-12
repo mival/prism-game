@@ -4019,7 +4019,9 @@
      placed). Each run is one straight stretch of light, from where it starts
      to where it stops or turns, with its colour and direction; a beam sent
      back the way it came shows up as a second run on the same line with the
-     opposite direction. */
+     opposite direction. Each run also has `dist`, how far the light has
+     travelled from its laser when the run starts, and `len`, its length, so
+     the game can draw light travelling. */
   function trace(level, pieces) {
     const [cols, rows] = sizeOf(level);
     const cells = levelCells(level);
@@ -4034,6 +4036,7 @@
       y: s.y,
       d: s.d,
       c: s.c,
+      dist: 0,
     }));
     let guard = 0;
 
@@ -4057,6 +4060,8 @@
             y1: y + dy / 2,
             c: b.c,
             d: b.d,
+            dist: b.dist,
+            len: Math.hypot(x + dx / 2 - b.x, y + dy / 2 - b.y),
           });
         if (nx < 0 || ny < 0 || nx >= cols || ny >= rows) {
           stopAtEdge();
@@ -4072,17 +4077,28 @@
           stopAtEdge();
           break;
         }
-        runs.push({ x0: b.x, y0: b.y, x1: nx, y1: ny, c: b.c, d: b.d });
+        const len = Math.hypot(nx - b.x, ny - b.y);
+        const dist = b.dist + len;
+        runs.push({
+          x0: b.x,
+          y0: b.y,
+          x1: nx,
+          y1: ny,
+          c: b.c,
+          d: b.d,
+          dist: b.dist,
+          len,
+        });
         if (cell.kind === "receiver") hits[cell.i] |= b.c;
         if (cell.kind === "sensor") sensorHits[cell.i] |= b.c;
         if (cell.kind === "door")
-          queue.push({ x: nx, y: ny, d: b.d, c: b.c & cell.c });
+          queue.push({ x: nx, y: ny, d: b.d, c: b.c & cell.c, dist });
         if (cell.kind === "portal")
-          queue.push({ x: cell.to[0], y: cell.to[1], d: b.d, c: b.c });
+          queue.push({ x: cell.to[0], y: cell.to[1], d: b.d, c: b.c, dist });
         if (cell.kind === "piece") {
           PIECES[cell.p.type]
             .out(cell.p, b.d, b.c)
-            .forEach((o) => queue.push({ x: nx, y: ny, d: o.d, c: o.c }));
+            .forEach((o) => queue.push({ x: nx, y: ny, d: o.d, c: o.c, dist }));
         }
         break;
       }

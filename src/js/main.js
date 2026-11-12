@@ -139,10 +139,111 @@
     .matchMedia("(prefers-color-scheme: dark)")
     .addEventListener("change", applyTheme);
 
+  /* ------------------------------ motion ------------------------------ */
+
+  /* Pieces turn smoothly and settle when placed; light travels from where
+     the board changed; a solved level bursts. With "reduce motion" on,
+     everything stays instant. */
+  const TURN_MS = 140;
+  const POP_MS = 180;
+  const BURST_MS = 900;
+  const easeOut = (x) => 1 - Math.pow(1 - x, 3);
+  const motion = new Map(); // piece -> { turn: {from, to, t0}, pop: t0 }
+
+  function startTurn(p, by) {
+    if (reduceMotion) return;
+    const now = performance.now();
+    const m = motion.get(p) || {};
+    const from = m.turn ? turnedK(m.turn, now) : p.k;
+    const to = (m.turn ? m.turn.to : p.k) + by;
+    motion.set(p, { ...m, turn: { from, to, t0: now } });
+  }
+  function startPop(p) {
+    if (reduceMotion) return;
+    motion.set(p, { ...(motion.get(p) || {}), pop: performance.now() });
+  }
+  const turnedK = (turn, t) =>
+    turn.from +
+    (turn.to - turn.from) * easeOut(Math.min(1, (t - turn.t0) / TURN_MS));
+
+  /* The piece as drawn at time t: part way through a turn, or settling. */
+  function shown(p, t) {
+    const m = motion.get(p);
+    if (!m) return p;
+    let q = p;
+    if (m.turn) {
+      if (t - m.turn.t0 >= TURN_MS) delete m.turn;
+      else q = { ...q, k: turnedK(m.turn, t) };
+    }
+    if (m.pop !== undefined) {
+      const e = (t - m.pop) / POP_MS;
+      if (e >= 1) delete m.pop;
+      else q = { ...q, scale: 1 + 0.18 * (1 - easeOut(e)) };
+    }
+    if (!m.turn && m.pop === undefined) motion.delete(p);
+    return q;
+  }
+
+  /* Light that is new after a change grows from where it starts, at a
+     speed that keeps any change under half a second. */
+  const runKey = (r) => `${r.x0},${r.y0},${r.x1},${r.y1},${r.c},${r.d}`;
+  function makeReveal(prev, cur, lv) {
+    if (reduceMotion) return null;
+    const before = new Set(prev ? prev.runs.map(runKey) : []);
+    const fresh = new Set(cur.runs.filter((r) => !before.has(runKey(r))));
+    if (!fresh.size) return null;
+    let start = Infinity,
+      end = 0;
+    for (const r of fresh) {
+      start = Math.min(start, r.dist);
+      end = Math.max(end, r.dist + r.len);
+    }
+    const targets = new Set(
+      lv.receivers
+        .map((r) => r.x + "," + r.y)
+        .concat((lv.sensors || []).map(([x, y]) => x + "," + y)),
+    );
+    const arrival = new Map();
+    for (const r of fresh) {
+      const k = r.x1 + "," + r.y1;
+      if (targets.has(k))
+        arrival.set(k, Math.min(arrival.get(k) ?? Infinity, r.dist + r.len));
+    }
+    // 240–500 ms: short changes stay visible, long paths don't drag.
+    const ms = Math.max(240, Math.min(500, (end - start) * 55));
+    const speed = Math.max(1e-3, (end - start) / ms); // cells per ms
+    return {
+      fresh,
+      arrival,
+      start,
+      end,
+      speed,
+      t0: performance.now(),
+      at: start,
+    };
+  }
+  /* Seconds until new light reaches a tile (0 if it is already there). */
+  function arrivalDelay(x, y) {
+    const r = state.reveal;
+    if (!r || !r.arrival.has(x + "," + y)) return 0;
+    return (r.arrival.get(x + "," + y) - r.start) / r.speed / 1000;
+  }
+
   /* ------------------------------ state ------------------------------ */
 
   function startLevel(lv) {
     state.prevLit = null;
+    state.prevResult = null;
+    state.solvedAt = null;
+    motion.clear();
+    if (!reduceMotion && el.board.animate)
+      el.board.animate(
+        [
+          { opacity: 0, transform: "scale(0.985)" },
+          { opacity: 1, transform: "none" },
+        ],
+        { duration: 280, easing: "ease-out" },
+      );
     state.undo = [];
     state.redo = [];
     state.moves = 0;
@@ -573,6 +674,8 @@
   function update() {
     const lv = level();
     state.result = L.trace(lv, state.pieces);
+    state.reveal = makeReveal(state.prevResult, state.result, lv);
+    state.prevResult = state.result;
     playChanges(lv, state.result);
     const n = state.result.lit.filter(Boolean).length;
     el.lit.textContent = t("lit", { n, total: lv.receivers.length });
@@ -600,10 +703,18 @@
     if (state.prevLit) {
       let n = 0;
       r.lit.forEach((on, i) => {
-        if (on && !state.prevLit[i]) Sound.lit(lv.receivers[i].c, 0.07 * n++);
+        if (on && !state.prevLit[i]) {
+          const r = lv.receivers[i];
+          Sound.lit(r.c, arrivalDelay(r.x, r.y) + 0.07 * n++);
+        }
       });
-      if (r.sensorHits.some((h, i) => h && !state.prevSensors[i]))
-        Sound.sensor();
+      const hit = (lv.sensors || []).findIndex(
+        (s, i) => r.sensorHits[i] && !state.prevSensors[i],
+      );
+      if (hit >= 0) {
+        const [x, y] = lv.sensors[hit];
+        setTimeout(() => Sound.sensor(), arrivalDelay(x, y) * 1000);
+      }
     }
     state.prevLit = r.lit.slice();
     state.prevSensors = r.sensorHits.slice();
@@ -615,6 +726,7 @@
     const lv = level();
     Sound.solved();
     state.confirmed = true;
+    state.solvedAt = performance.now();
     pauseClock();
     recordSolve(lv);
     renderUndo();
@@ -758,6 +870,7 @@
       state.pieces.push(p);
       state.inv[trayId]--;
       Sound.place();
+      startPop(p);
       if (state.inv[trayId] <= 0) state.armed = null;
       update();
     });
@@ -770,6 +883,7 @@
       act(() => {
         if (states === 2) Sound.flip();
         else Sound.rotate();
+        startTurn(p, by);
         p.k = (((p.k + by) % states) + states) % states;
         update();
       });
@@ -936,6 +1050,53 @@
     return [Progress.describeRestore(r), true];
   }
 
+  /* ------------------------------ level previews ------------------------------ */
+
+  /* A small drawing of a level for its tile: unsolved levels show the board
+     and their starting light, dimmed; solved ones show their solution with
+     the light reaching every receiver. Drawn when the list opens, cached
+     per theme. */
+  const previews = new Map();
+  function preview(lv, solved) {
+    const key = `${lv.id}|${solved}|${theme.board}|${theme.additive}`;
+    if (previews.has(key)) return previews.get(key);
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const S = 7 * dpr;
+    const [cols, rows] = L.sizeOf(lv);
+    const c = document.createElement("canvas");
+    c.width = cols * S;
+    c.height = rows * S;
+    c.className = "thumb";
+    c.setAttribute("aria-hidden", "true");
+    let pieces = L.fixedPieces(lv);
+    if (solved) {
+      const sol = lv.solution;
+      pieces = pieces
+        .map((f, i) => ({ ...f, k: sol.fixed[i] }))
+        .concat(
+          sol.placed.map((p) => ({
+            ...L.pieceFromTrayId(p.id, p.x, p.y),
+            k: p.k,
+          })),
+        );
+    }
+    const ctx = c.getContext("2d");
+    Scene.base(ctx, lv, pieces, S, null);
+    const glow = document.createElement("canvas");
+    glow.width = c.width;
+    glow.height = c.height;
+    const gctx = glow.getContext("2d");
+    gctx.globalCompositeOperation = "lighter";
+    Scene.light(gctx, lv, L.trace(lv, pieces), S, 0, null);
+    ctx.globalCompositeOperation = theme.additive ? "lighter" : "source-over";
+    ctx.globalAlpha = solved ? 1 : 0.55;
+    ctx.drawImage(glow, 0, 0);
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = "source-over";
+    previews.set(key, c);
+    return c;
+  }
+
   function renderLevels() {
     el.doneCount.textContent = t("done", {
       n: state.done.size,
@@ -989,19 +1150,26 @@
       const name = document.createElement("span");
       name.className = "nm";
       name.textContent = levelName(lv);
-      b.append(head, name);
+      const info = document.createElement("span");
+      info.className = "info";
+      info.append(head, name);
+      // Previews are drawn only while the list is open.
+      const thumb = el.dialog.open
+        ? preview(lv, solved)
+        : Object.assign(document.createElement("span"), { className: "thumb" });
+      b.append(thumb, info);
       if (hintText) {
         const h = document.createElement("span");
         h.className = "hints" + (hints === 0 ? " none" : "");
         h.textContent = hints === 0 ? hintText : `💡 ${hintText}`;
-        b.append(h);
+        info.append(h);
       }
       const best = solved && state.bestStats[lv.id];
       if (best) {
         const st = document.createElement("span");
         st.className = "stats";
         st.textContent = `${movesText(best.moves)} · ${clock(best.ms)}`;
-        b.append(st);
+        info.append(st);
       }
       b.addEventListener("click", () => {
         el.dialog.close();
@@ -1015,6 +1183,7 @@
     renderDaily();
     if (el.dialog.showModal) el.dialog.showModal();
     else el.dialog.setAttribute("open", "");
+    renderLevels(); // now open: draws the previews
     const cur = el.grid.querySelector('[aria-current="true"]');
     if (cur) cur.focus();
   });
@@ -1244,6 +1413,7 @@
       p.y = c.y;
       state.pieces.push(p);
       Sound.place();
+      startPop(p);
     } else if (!cancelled && (!c || overTray(e.clientX, e.clientY))) {
       state.inv[p.trayId]++;
       Sound.remove();
@@ -1495,18 +1665,45 @@
 
   const center = Scene.center;
 
-  function drawBase() {
+  /* Free tiles the light crosses: only there can a new piece change it. */
+  function lightTiles() {
+    const set = new Set();
+    for (const r of state.result.runs) {
+      const [dx, dy] = L.DIRS[r.d];
+      let x = r.x0,
+        y = r.y0;
+      for (let i = 0; i < 20; i++) {
+        if (Number.isInteger(x) && Number.isInteger(y)) set.add(x + "," + y);
+        if (Math.abs(x - r.x1) < 0.6 && Math.abs(y - r.y1) < 0.6) break;
+        x += dx;
+        y += dy;
+      }
+    }
+    return set;
+  }
+
+  function drawBase(t) {
     const S = state.S,
       lv = level(),
       ctx = bctx;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     const d = state.drag;
-    Scene.base(ctx, lv, state.pieces, S, null);
+    Scene.base(
+      ctx,
+      lv,
+      state.pieces.map((p) => shown(p, t)),
+      S,
+      null,
+    );
 
     if (state.armed || (d && d.active)) {
+      const lit = lightTiles();
       for (let x = 0; x < L.COLS; x++)
         for (let y = 0; y < L.ROWS; y++)
-          if (L.isFree(lv, state.pieces, x, y)) Draw.freeCell(ctx, x, y, S);
+          if (L.isFree(lv, state.pieces, x, y)) {
+            if (lit.has(x + "," + y)) Draw.pathCell(ctx, x, y, S);
+            Draw.freeCell(ctx, x, y, S);
+          }
     }
 
     if (d && d.active && d.x !== undefined) {
@@ -1534,7 +1731,10 @@
     ctx.globalCompositeOperation = "lighter";
 
     const phase = reduceMotion ? 0.5 : (t / 1000) * 1.5;
-    Scene.light(ctx, lv, state.result, S, t, phase);
+    const rv = state.reveal;
+    if (rv) rv.at = rv.start + (t - rv.t0) * rv.speed;
+    Scene.light(ctx, lv, state.result, S, t, phase, rv);
+    if (rv && rv.at >= rv.end) state.reveal = null;
 
     const charge = state.confirmed
       ? 1
@@ -1552,6 +1752,26 @@
           S,
         ),
       );
+    // Solved: each receiver sends out a ring in its own colour.
+    const e = state.solvedAt === null ? 1 : (t - state.solvedAt) / BURST_MS;
+    if (e < 1 && !reduceMotion)
+      lv.receivers.forEach((r, i) => {
+        const k = Math.max(0, Math.min(1, e * 1.15 - i * 0.05));
+        if (k <= 0 || k >= 1) return;
+        ctx.globalAlpha = 0.9 * (1 - k);
+        ctx.strokeStyle = PrismRender.COLORS[r.c];
+        ctx.lineWidth = S * (0.12 * (1 - k) + 0.02);
+        ctx.beginPath();
+        ctx.arc(
+          center(r.x, S),
+          center(r.y, S),
+          S * (0.46 + 1.1 * easeOut(k)),
+          0,
+          Math.PI * 2,
+        );
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      });
     ctx.globalCompositeOperation = "source-over";
   }
 
@@ -1573,10 +1793,13 @@
       el.hint.classList.add("nudge");
       renderStatus();
     }
+    if (motion.size) state.baseDirty = true;
     const baseDirty = state.baseDirty;
-    if (baseDirty) drawBase();
+    if (baseDirty) drawBase(t);
     drawLight(t);
-    compositor.render(base, light, baseDirty);
+    const e = state.solvedAt === null ? 1 : (t - state.solvedAt) / BURST_MS;
+    const boost = e < 1 && !reduceMotion ? 1 + 1.4 * Math.pow(1 - e, 2) : 1;
+    compositor.render(base, light, baseDirty, boost);
     state.baseDirty = false;
     requestAnimationFrame(frame);
   }

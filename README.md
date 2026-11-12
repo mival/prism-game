@@ -43,6 +43,10 @@ Prism is a Progressive Web App. `sw.js` caches every file on the first visit, so
 
 The game is in English and Czech. `src/js/i18n.js` picks the language (Settings > Language: Auto follows the browser, Czech or Slovak choosing Czech) and holds the translations: strings built in JavaScript have an English and a Czech entry, and static English text in the pages is swapped for Czech by matching it, so the HTML stays plain English. Czech level names and hints live in `src/js/levels-cs.js`. To translate new text, add its Czech to `STATIC_CS` (static text) or `STRINGS.cs` (text built in code).
 
+### Motion
+
+Pieces turn smoothly and settle when placed; after any change, only the new light grows from where the path changed (`dist` and `len` on each traced run), and receivers light, and chime, when it arrives. A solved level sends a ring out of each receiver with a bloom pulse, and each level fades in. With the system's "reduce motion" setting everything is instant. While a piece is selected, free tiles the light crosses are tinted (`--cell-path`), the board carries a faint chapter tint (`--tint-easy`, `--tint-medium`, `--tint-hard`), and the Levels list shows a small preview of every level, drawn by the same renderer.
+
 ## Themes
 
 Every color, font, radius and glow setting lives in `src/css/theme.css`. The page styles and the canvas renderer both read those CSS variables, so changing a value there changes the game. Dark is the default; light follows the system setting, and Settings switches between auto, light and dark.
