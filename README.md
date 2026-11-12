@@ -37,7 +37,7 @@ The Levels dialog starts with a daily level: its seed is a hash of the local dat
 
 ### Offline and installing
 
-Prism is a Progressive Web App. `sw.js` caches every file on the first visit, so the game, including Endless mode, works offline; Settings has an Install button where the browser offers one (and the steps for iPhone). The game's files are fetched network-first, so a new version reaches players as soon as they are online. The deploy workflow stamps each release: the pages carry their version in `<meta name="prism-version">` and `version.json` names the newest, so an open app shows a "new version" banner when they differ, and Settings › App has Check for updates. When adding a file the game loads, add it to `FILES` in `sw.js` and bump `VERSION`. `manifest.webmanifest` and `icons/` hold the app name and icons.
+Prism is a Progressive Web App. `sw.js` caches every file on the first visit, so the game, including Endless mode, works offline; Settings has an Install button where the browser offers one (and the steps for iPhone). The game's files are fetched network-first, so a new version reaches players as soon as they are online. The deploy workflow stamps each release: the pages carry their version in `<meta name="prism-version">` and `version.json` names the newest, so an open app shows a "new version" banner when they differ, and Settings › App has Check for updates. When adding a file the game loads, add it to `FILES` in `sw.js` and bump `VERSION`. `manifest.webmanifest` and `icons/` hold the app name and icons. `icons/og-image.png` is the 1200×630 picture shown when a link to the game is shared; the pages' Open Graph tags point to it by its full URL.
 
 ## Themes
 
