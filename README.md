@@ -31,6 +31,10 @@ The level list also offers Endless: Easy, Medium or Hard levels generated on the
 
 Each generated level has a code like `M-48213` (difficulty and seed). The same code always gives the same level, and a link ending in `#M-48213` opens it directly. Pages opened from `file://` can't start workers, so there the level is built on the page.
 
+### Today's level
+
+The Levels dialog starts with a daily level: its seed is a hash of the local date and its difficulty follows the weekday (Monday and Thursday easy, Tuesday and Friday medium, the rest hard). The builder runs in "exact" mode, returning the lowest valid seed from there even though several workers search in parallel, so every device builds the same level. Solving it on consecutive days builds a streak (`prism.daily`).
+
 ### Offline and installing
 
 Prism is a Progressive Web App. `sw.js` caches every file on the first visit, so the game, including Endless mode, works offline; Settings has an Install button where the browser offers one (and the steps for iPhone). The game's files are fetched network-first, so a new version reaches players as soon as they are online. The deploy workflow stamps each release: the pages carry their version in `<meta name="prism-version">` and `version.json` names the newest, so an open app shows a "new version" banner when they differ, and Settings › App has Check for updates. When adding a file the game loads, add it to `FILES` in `sw.js` and bump `VERSION`. `manifest.webmanifest` and `icons/` hold the app name and icons.

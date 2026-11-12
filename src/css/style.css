@@ -316,6 +316,58 @@ dialog#levelDialog::backdrop {
   border-color: var(--text);
 }
 
+/* Today's level, at the top of the Levels dialog. */
+.daily {
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line);
+  background: var(--chip);
+}
+.daily.done {
+  border-color: var(--lit);
+}
+.daily-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.daily-head h2 {
+  margin: 0;
+  font-size: 16px;
+}
+.daily-date {
+  margin: 2px 0 8px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.daily-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.daily-note {
+  flex: 1;
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--muted);
+}
+.daily-play {
+  flex: 0 0 auto;
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--text);
+  background: var(--text);
+  color: var(--bg);
+  font-size: 14px;
+}
+.daily.done .daily-play {
+  background: transparent;
+  color: var(--text);
+  border-color: var(--line);
+}
+
 .endless {
   margin-bottom: 16px;
   padding-bottom: 16px;

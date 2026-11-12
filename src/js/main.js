@@ -13,6 +13,11 @@
     levelName: $("levelName"),
     levelDiff: $("levelDiff"),
     lit: $("lit"),
+    dailyCard: $("dailyCard"),
+    dailyDate: $("dailyDate"),
+    dailyDiff: $("dailyDiff"),
+    dailyPlay: $("dailyPlay"),
+    dailyNote: $("dailyNote"),
     undo: $("undo"),
     redo: $("redo"),
     status: $("status"),
@@ -79,6 +84,8 @@
     attempt: load("prism.attempt", { id: null, hints: 0 }),
     endless: null,
     endlessSolved: load("prism.endless", { easy: 0, medium: 0, hard: 0 }),
+    /* Daily level: last date solved (YYYY-MM-DD) and the streak of days. */
+    daily: load("prism.daily", { last: null, streak: 0 }),
     prefetch: null,
     /* Undo and redo: board snapshots before each change. */
     undo: [],
@@ -223,7 +230,11 @@
 
     /* Returns { promise, cancel }. The promise gives the level, or null if
        none was found or the build was cancelled. */
-    function build(msg, { cores = 1, onProgress } = {}) {
+    /* `exact`: return the level with the lowest valid seed at or after
+       msg.seed, so every device builds the same one (the daily level).
+       Workers keep searching their share of seeds until they find a level
+       or pass the best one found so far. */
+    function build(msg, { cores = 1, onProgress, exact = false } = {}) {
       let workers = [];
       try {
         if (supported)
@@ -248,19 +259,48 @@
       const tried = workers.map(() => 0);
       let left = workers.length;
       let failed = false;
+      let best = null;
+      const seedOf = (lv) => Number(lv.code.split("-")[1]);
+      const stopped = workers.map(() => false);
+      const finish1 = (i) => {
+        if (stopped[i]) return;
+        stopped[i] = true;
+        if (--left === 0) end(best || (failed ? local(msg) : null));
+      };
       workers.forEach((w, i) => {
         w.onmessage = (e) => {
           if ("tried" in e.data) {
             tried[i] = e.data.tried;
             if (onProgress) onProgress(tried.reduce((a, b) => a + b, 0));
+            // Past the best seed found so far: nothing lower can come from here.
+            const at = msg.seed + i + (tried[i] - 1) * workers.length;
+            if (exact && best && at > seedOf(best)) {
+              w.terminate();
+              finish1(i);
+            }
             return;
           }
-          if (e.data.level) return end(e.data.level);
-          if (--left === 0) end(failed ? local(msg) : null);
+          if (!exact) {
+            if (e.data.level) return end(e.data.level);
+            if (--left === 0) end(failed ? local(msg) : null);
+            return;
+          }
+          const lv = e.data.level;
+          if (lv && (!best || seedOf(lv) < seedOf(best))) best = lv;
+          finish1(i);
+          // Others already past it can stop now.
+          workers.forEach((x, j) => {
+            const at = msg.seed + j + (tried[j] - 1) * workers.length;
+            if (!stopped[j] && tried[j] && at > seedOf(best)) {
+              x.terminate();
+              finish1(j);
+            }
+          });
         };
         w.onerror = (e) => {
           e.preventDefault();
           failed = true;
+          if (exact) return finish1(i);
           if (--left === 0) end(local(msg));
         };
         w.postMessage(
@@ -324,13 +364,85 @@
     if (building.job) building.job.cancel();
   });
 
-  async function playEndless(difficulty, code) {
+  /* ------------------------------ daily ------------------------------ */
+
+  /* One level per day, the same for everyone on the same date: its seed
+     comes from the date, and the lowest valid seed from there is used. */
+  const DAILY_BY_WEEKDAY = [
+    "hard", // Sunday
+    "easy",
+    "medium",
+    "hard",
+    "easy",
+    "medium",
+    "hard",
+  ];
+  const dayKey = (d = new Date()) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  function dailyFor(d = new Date()) {
+    const key = dayKey(d);
+    let h = 0x811c9dc5;
+    for (const ch of "prism-daily-" + key)
+      h = Math.imul(h ^ ch.charCodeAt(0), 0x01000193) >>> 0;
+    return {
+      key,
+      difficulty: DAILY_BY_WEEKDAY[d.getDay()],
+      seed: 1 + (h % 900000),
+    };
+  }
+  function yesterdayKey() {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    return dayKey(d);
+  }
+  /* The streak only counts if the last solve was today or yesterday. */
+  const currentStreak = () =>
+    state.daily.last === dayKey() || state.daily.last === yesterdayKey()
+      ? state.daily.streak
+      : 0;
+  function recordDaily(key) {
+    if (state.daily.last === key) return;
+    state.daily = {
+      last: key,
+      streak: state.daily.last === yesterdayKey() ? state.daily.streak + 1 : 1,
+    };
+    save("prism.daily", state.daily);
+  }
+  function renderDaily() {
+    const d = dailyFor();
+    const date = new Date().toLocaleDateString(undefined, {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+    });
+    el.dailyDate.textContent = date;
+    el.dailyDiff.textContent = DIFF_LABEL[d.difficulty];
+    el.dailyDiff.className = "rating " + d.difficulty;
+    const solved = state.daily.last === d.key;
+    el.dailyPlay.textContent = solved ? "Play again" : "Play";
+    const streak = currentStreak();
+    el.dailyNote.textContent = solved
+      ? `Solved today${streak > 1 ? ` · ${streak}-day streak` : ""}. A new one comes tomorrow.`
+      : streak > 0
+        ? `${streak}-day streak. Solve today's to keep it going.`
+        : "Everyone gets the same level today.";
+    el.dailyCard.classList.toggle("done", solved);
+  }
+  el.dailyPlay.addEventListener("click", () => playEndless(null, null, true));
+
+  async function playEndless(difficulty, code, daily = false) {
     if (state.busy) return;
     if (el.dialog.open) el.dialog.close();
     state.busy = true;
     state.drag = null;
     state.armed = null;
-    const label = code ? "that" : "a " + DIFF_LABEL[difficulty].toLowerCase();
+    const today = daily ? dailyFor() : null;
+    if (today) difficulty = today.difficulty;
+    const label = daily
+      ? "today's"
+      : code
+        ? "that"
+        : "a " + DIFF_LABEL[difficulty].toLowerCase();
     const title = `Building ${label} level…`;
     el.status.classList.remove("win", "warn");
     el.statusText.textContent = title;
@@ -339,7 +451,7 @@
 
     let lv = null;
     const pf = state.prefetch;
-    if (!code && pf && pf.difficulty === difficulty && pf.level) {
+    if (!code && !daily && pf && pf.difficulty === difficulty && pf.level) {
       // Ready in the background: no wait at all.
       lv = pf.level;
       state.prefetch = null;
@@ -350,10 +462,13 @@
       building.started = performance.now();
       building.tried = 0;
       const job = Builder.build(
-        code ? { code } : { difficulty, seed: randomSeed() },
+        code
+          ? { code }
+          : { difficulty, seed: daily ? today.seed : randomSeed() },
         {
           cores: Builder.CORES,
           onProgress: (n) => (building.tried = n),
+          exact: daily,
         },
       );
       building.job = job;
@@ -372,8 +487,17 @@
       if (code) showCodeError(true);
       return;
     }
-    state.endless = { difficulty: lv.difficulty, level: lv };
-    el.levelNo.textContent = "ENDLESS";
+    state.endless = {
+      difficulty: lv.difficulty,
+      level: lv,
+      daily: daily ? today.key : null,
+    };
+    el.levelNo.textContent = daily
+      ? "DAILY · " +
+        new Date()
+          .toLocaleDateString(undefined, { day: "numeric", month: "short" })
+          .toUpperCase()
+      : "ENDLESS";
     el.levelName.textContent = lv.name;
     showDifficulty(lv.difficulty);
     el.prev.disabled = false;
@@ -475,7 +599,10 @@
     renderUndo();
     state.holdSince = null;
     el.lit.classList.add("all");
-    if (state.endless) {
+    if (state.endless && state.endless.daily) {
+      recordDaily(state.endless.daily);
+      renderDaily();
+    } else if (state.endless) {
       const d = state.endless.difficulty;
       state.endlessSolved[d] = (state.endlessSolved[d] || 0) + 1;
       save("prism.endless", state.endlessSolved);
@@ -855,6 +982,7 @@
   }
 
   el.levelsBtn.addEventListener("click", () => {
+    renderDaily();
     if (el.dialog.showModal) el.dialog.showModal();
     else el.dialog.setAttribute("open", "");
     const cur = el.grid.querySelector('[aria-current="true"]');
