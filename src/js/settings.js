@@ -6,6 +6,18 @@
   const L = window.PrismLogic;
   const P = window.PrismProgress;
   const $ = (id) => document.getElementById(id);
+  const t = window.PrismI18n.t;
+
+  /* ------------------------------ language ------------------------------ */
+
+  const langInputs = [...document.querySelectorAll('input[name="lang"]')];
+  langInputs.forEach((i) => {
+    i.checked = i.value === window.PrismI18n.choice();
+    i.addEventListener("change", () => {
+      window.PrismI18n.setChoice(i.value);
+      location.reload();
+    });
+  });
 
   /* ------------------------------ theme ------------------------------ */
 
@@ -79,11 +91,12 @@
     const solved = p.done.filter((id) => L.LEVELS.some((l) => l.id === id));
     const wins = p.endless.easy + p.endless.medium + p.endless.hard;
     const clean = solved.filter((id) => p.hints[id] === 0).length;
-    let text = `You've solved <b>${solved.length} of ${L.LEVELS.length}</b> levels`;
-    if (clean) text += `, <b>${clean}</b> of them without hints`;
-    if (wins)
-      text += `${clean ? "," : ""} and <b>${wins}</b> Endless level${wins === 1 ? "" : "s"}`;
-    $("summary").innerHTML = text + ".";
+    $("summary").innerHTML = t("summary", {
+      solved: solved.length,
+      total: L.LEVELS.length,
+      clean,
+      wins,
+    });
     $("saveCode").textContent = code();
     if (!$("qr").hidden) renderQr();
   }
@@ -112,10 +125,10 @@
   function copy(text, button) {
     if (navigator.clipboard && navigator.clipboard.writeText)
       navigator.clipboard.writeText(text).then(
-        () => flash(button, "Copied"),
-        () => flash(button, "Couldn't copy"),
+        () => flash(button, t("copied")),
+        () => flash(button, t("couldntCopy")),
       );
-    else flash(button, "Couldn't copy");
+    else flash(button, t("couldntCopy"));
   }
 
   $("showQr").addEventListener("click", () => {
@@ -134,13 +147,7 @@
   }
   $("copyCode").addEventListener("click", () => copy(code(), $("copyCode")));
   $("download").addEventListener("click", () => {
-    const text =
-      "Prism save code\n\n" +
-      code() +
-      "\n\nTo continue on another device, open Prism, go to Settings > Restore,\n" +
-      "and load this file or type the code. Or open this link:\n" +
-      link() +
-      "\n";
+    const text = t("saveFile", { code: code(), link: link() });
     const url = URL.createObjectURL(new Blob([text], { type: "text/plain" }));
     const a = document.createElement("a");
     a.href = url;
@@ -162,12 +169,7 @@
 
   function restore(text) {
     const p = text && P.decode(text);
-    if (!p)
-      return message(
-        $("restoreMsg"),
-        "That isn't a valid save code. Check it for typos; dashes and spaces don't matter.",
-        false,
-      );
+    if (!p) return message($("restoreMsg"), t("badCode"), false);
     message($("restoreMsg"), P.describeRestore(P.mergeLocal(p)), true);
     renderSummary();
   }
@@ -183,15 +185,10 @@
       (text) => {
         const found = P.findCode(text);
         if (found) restore(found);
-        else
-          message(
-            $("restoreMsg"),
-            "That file doesn't contain a save code.",
-            false,
-          );
+        else message($("restoreMsg"), t("noCodeInFile"), false);
         $("restoreFile").value = "";
       },
-      () => message($("restoreMsg"), "That file couldn't be read.", false),
+      () => message($("restoreMsg"), t("fileUnreadable"), false),
     );
   });
 
@@ -211,11 +208,7 @@
     P.resetLocal();
     $("resetConfirm").hidden = true;
     $("resetStart").hidden = false;
-    message(
-      $("resetMsg"),
-      "Progress reset. Every level is unsolved again.",
-      true,
-    );
+    message($("resetMsg"), t("resetDone"), true);
     renderSummary();
   });
 

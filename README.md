@@ -39,6 +39,10 @@ The Levels dialog starts with a daily level: its seed is a hash of the local dat
 
 Prism is a Progressive Web App. `sw.js` caches every file on the first visit, so the game, including Endless mode, works offline; Settings has an Install button where the browser offers one (and the steps for iPhone). The game's files are fetched network-first, so a new version reaches players as soon as they are online. The deploy workflow stamps each release: the pages carry their version in `<meta name="prism-version">` and `version.json` names the newest, so an open app shows a "new version" banner when they differ, and Settings › App has Check for updates. When adding a file the game loads, add it to `FILES` in `sw.js` and bump `VERSION`. `manifest.webmanifest` and `icons/` hold the app name and icons. `icons/og-image.png` is the 1200×630 picture shown when a link to the game is shared; the pages' Open Graph tags point to it by its full URL.
 
+### Languages
+
+The game is in English and Czech. `src/js/i18n.js` picks the language (Settings > Language: Auto follows the browser, Czech or Slovak choosing Czech) and holds the translations: strings built in JavaScript have an English and a Czech entry, and static English text in the pages is swapped for Czech by matching it, so the HTML stays plain English. Czech level names and hints live in `src/js/levels-cs.js`. To translate new text, add its Czech to `STATIC_CS` (static text) or `STRINGS.cs` (text built in code).
+
 ## Themes
 
 Every color, font, radius and glow setting lives in `src/css/theme.css`. The page styles and the canvas renderer both read those CSS variables, so changing a value there changes the game. Dark is the default; light follows the system setting, and Settings switches between auto, light and dark.
@@ -55,6 +59,7 @@ To add a theme, copy the light block in `theme.css` under a new `:root[data-them
 - `settings.html` and `src/js/settings.js` are the settings page: theme, moving progress, restore and reset. `src/css/page.css` styles both pages.
 - `src/js/progress.js` holds the save-code format and reads and merges progress in the browser.
 - `src/js/sound.js` synthesizes the sound effects with the Web Audio API (no audio files): each light color has a note, so receivers chime as they light and a solved board resolves into a chord. Settings has the on/off switch and volume.
+- `src/js/i18n.js` and `src/js/levels-cs.js` hold the Czech translation.
 - `sw.js`, `src/js/pwa.js` and `manifest.webmanifest` make the game work offline and installable.
 - `src/vendor/qrcode.js` is [qrcode-generator](https://github.com/kazuhikoarase/qrcode-generator) 2.0.4 (MIT), used for the QR code.
 

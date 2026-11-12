@@ -55,6 +55,7 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="Prism" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <script src="src/js/i18n.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -72,6 +73,30 @@
         <span class="eyebrow">PRISM · SETTINGS</span>
         <h1>Settings</h1>
       </header>
+
+      <section aria-labelledby="langTitle">
+        <h2 id="langTitle">Language</h2>
+        <div class="panel">
+          <div class="segmented" role="radiogroup" aria-labelledby="langTitle">
+            <label
+              ><input type="radio" name="lang" value="auto" /><span
+                >Auto</span
+              ></label
+            >
+            <label
+              ><input type="radio" name="lang" value="en" /><span lang="en"
+                >English</span
+              ></label
+            >
+            <label
+              ><input type="radio" name="lang" value="cs" /><span lang="cs"
+                >Čeština</span
+              ></label
+            >
+          </div>
+          <p>Auto uses your browser's language.</p>
+        </div>
+      </section>
 
       <section aria-labelledby="themeTitle">
         <h2 id="themeTitle">Theme</h2>

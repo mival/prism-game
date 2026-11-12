@@ -1,5 +1,8 @@
 "use strict";
 
+const tr = (key, vars) =>
+  window.PrismI18n ? window.PrismI18n.t(key, vars) : key;
+
 /* Registers the service worker (sw.js) that lets Prism run offline and be
    installed. Service workers only run over http(s), not from file://. */
 if ("serviceWorker" in navigator && /^https?:$/.test(location.protocol)) {
@@ -21,7 +24,7 @@ if ("serviceWorker" in navigator && /^https?:$/.test(location.protocol)) {
     matchMedia("(display-mode: standalone)").matches ||
     navigator.standalone === true;
   if (standalone) {
-    status.textContent = "Prism is installed and works offline.";
+    status.textContent = tr("installed");
     return;
   }
   const ios =
@@ -42,13 +45,11 @@ if ("serviceWorker" in navigator && /^https?:$/.test(location.protocol)) {
     prompt = null;
     row.hidden = true;
     if (choice && choice.outcome === "accepted")
-      status.textContent =
-        "Installed. Prism now opens like an app and works offline.";
+      status.textContent = tr("installedNow");
   });
   window.addEventListener("appinstalled", () => {
     row.hidden = true;
-    status.textContent =
-      "Installed. Prism now opens like an app and works offline.";
+    status.textContent = tr("installedNow");
   });
 })();
 
@@ -101,11 +102,11 @@ window.PrismUpdate = (function () {
     bar.className = "update-banner";
     bar.setAttribute("role", "status");
     bar.innerHTML =
-      "<span>A new version of Prism is ready.</span>" +
-      '<button type="button" class="reload">Reload</button>' +
-      '<button type="button" class="close" aria-label="Later">×</button>';
+      `<span>${tr("newVersion")}</span>` +
+      `<button type="button" class="reload">${tr("reload")}</button>` +
+      `<button type="button" class="close" aria-label="${tr("later")}">×</button>`;
     bar.querySelector(".reload").addEventListener("click", (e) => {
-      e.target.textContent = "Updating…";
+      e.target.textContent = tr("updating");
       e.target.disabled = true;
       apply();
     });
@@ -133,42 +134,45 @@ window.PrismUpdate = (function () {
   if (!info) return;
   const U = window.PrismUpdate;
   const label = (v) => {
-    if (!v || v.version === "dev") return "Development copy";
+    if (!v || v.version === "dev") return tr("devCopy");
     const d = v.date
-      ? new Date(v.date + "T00:00:00Z").toLocaleDateString(undefined, {
-          day: "numeric",
-          month: "short",
-          year: "numeric",
-          timeZone: "UTC",
-        })
+      ? new Date(v.date + "T00:00:00Z").toLocaleDateString(
+          window.PrismI18n ? window.PrismI18n.locale : undefined,
+          {
+            day: "numeric",
+            month: "short",
+            year: "numeric",
+            timeZone: "UTC",
+          },
+        )
       : "";
-    return `Version ${v.version}` + (d ? ` · ${d}` : "");
+    return tr("version", { v: v.version }) + (d ? ` · ${d}` : "");
   };
   info.textContent = label(U.current);
   const button = document.getElementById("checkUpdate");
   const msg = document.getElementById("updateMsg");
   button.addEventListener("click", async () => {
     if (button.dataset.ready) {
-      button.textContent = "Updating…";
+      button.textContent = tr("updating");
       button.disabled = true;
       return U.apply();
     }
     button.disabled = true;
     msg.hidden = false;
     msg.className = "msg";
-    msg.textContent = "Checking…";
+    msg.textContent = tr("checking");
     const v = await U.check();
     button.disabled = false;
     if (!v) {
       msg.className = "msg bad";
-      msg.textContent = "Couldn't check: you seem to be offline.";
+      msg.textContent = tr("offlineCheck");
     } else if (v.version === U.current.version) {
       msg.className = "msg ok";
-      msg.textContent = "You have the latest version.";
+      msg.textContent = tr("latest");
     } else {
       msg.className = "msg ok";
-      msg.textContent = `${label(v)} is available.`;
-      button.textContent = "Reload to update";
+      msg.textContent = tr("available", { label: label(v) });
+      button.textContent = tr("reloadToUpdate");
       button.dataset.ready = "1";
     }
   });

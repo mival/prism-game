@@ -51,6 +51,9 @@
      this long, so tapping pieces at random can't finish it by passing
      through a solved state on the way to the next rotation. */
   const SOLVE_HOLD_MS = 1500;
+  /* Text in the player's language (src/js/i18n.js). */
+  const I18n = window.PrismI18n;
+  const t = I18n.t;
   /* Sound effects (src/js/sound.js); every call is a no-op when muted. */
   const Sound = window.PrismSound;
   /* After this long without a move, the hint button offers itself. */
@@ -170,18 +173,18 @@
     // The word "LEVEL" is dropped on narrow screens to leave room for the
     // difficulty tag.
     el.levelNo.innerHTML =
-      '<span class="lvl-word">LEVEL </span>' +
+      `<span class="lvl-word">${t("levelWord")}</span>` +
       String(i + 1).padStart(2, "0") +
       " / " +
       String(L.LEVELS.length).padStart(2, "0");
-    el.levelName.textContent = level().name;
+    el.levelName.textContent = levelName(level());
     showDifficulty(level().difficulty);
     el.prev.disabled = i === 0;
     el.fwd.disabled = i === L.LEVELS.length - 1;
-    el.prev.setAttribute("aria-label", "Previous level");
-    el.fwd.setAttribute("aria-label", "Next level");
-    el.prev.title = "Previous level";
-    el.fwd.title = "Next level";
+    el.prev.setAttribute("aria-label", t("prevLevel"));
+    el.fwd.setAttribute("aria-label", t("nextLevel"));
+    el.prev.title = t("prevLevel");
+    el.fwd.title = t("nextLevel");
     save("prism.levelId", L.LEVELS[i].id);
     if (location.hash) history.replaceState(null, "", location.pathname);
     startLevel(level());
@@ -193,7 +196,28 @@
      board keeps animating. Pages opened from file:// can't start workers;
      there the level is built on the page instead. While a level is being
      played, the next one of the same difficulty is already being built. */
-  const DIFF_LABEL = { easy: "Easy", medium: "Medium", hard: "Hard" };
+  const DIFF_LABEL = { easy: t("easy"), medium: t("medium"), hard: t("hard") };
+
+  /* A level's name and hint in the current language. Endless levels get
+     their hint from what they contain. */
+  const levelName = (lv) =>
+    lv.code ? I18n.endlessName(lv.name) : I18n.levelText(lv).name;
+  function levelHint(lv) {
+    if (!lv.code) return I18n.levelText(lv).hint;
+    const parts = [];
+    if (lv.portals) parts.push(t("mPortals"));
+    if (lv.sensors) parts.push(t("mSensors"));
+    if (lv.doors) parts.push(t("mDoors"));
+    if (lv.fixed) parts.push(t("mFixed"));
+    if (lv.sources.length > 1) parts.push(t("mLasers"));
+    const pieces = Object.values(lv.tray).reduce((a, b) => a + b, 0);
+    const decoys = pieces > lv.solution.placed.length;
+    return (
+      (parts.length
+        ? t("hasThese", { list: I18n.list(parts) })
+        : t("lightAll")) + (decoys ? t("notEvery") : "")
+    );
+  }
 
   /* The tag beside the level number: how hard this level is. */
   function showDifficulty(d) {
@@ -329,9 +353,9 @@
   /* Shown over the board when a build takes more than a moment: what is
      being built, roughly how long it takes, live progress, and Cancel. */
   const TYPICAL = {
-    easy: "This takes a moment.",
-    medium: "This usually takes a second or two.",
-    hard: "Hard levels usually take a few seconds.",
+    easy: t("typicalEasy"),
+    medium: t("typicalMedium"),
+    hard: t("typicalHard"),
   };
   const building = { job: null, timer: 0, tick: 0, started: 0, tried: 0 };
 
@@ -339,7 +363,7 @@
     el.buildTitle.textContent = title;
     el.buildInfo.textContent = difficulty
       ? TYPICAL[difficulty]
-      : "Rebuilding the level from its code.";
+      : t("rebuilding");
     el.buildProgress.textContent = "";
     el.building.hidden = false;
     building.tick = setInterval(renderProgress, 250);
@@ -347,10 +371,7 @@
   function renderProgress() {
     const s = Math.floor((performance.now() - building.started) / 1000);
     const parts = [];
-    if (building.tried)
-      parts.push(
-        `${building.tried} layout${building.tried === 1 ? "" : "s"} tried`,
-      );
+    if (building.tried) parts.push(t("tried", { n: building.tried }));
     if (s >= 1) parts.push(`${s} s`);
     el.buildProgress.textContent = parts.join(" · ");
   }
@@ -410,7 +431,7 @@
   }
   function renderDaily() {
     const d = dailyFor();
-    const date = new Date().toLocaleDateString(undefined, {
+    const date = new Date().toLocaleDateString(I18n.locale, {
       weekday: "long",
       day: "numeric",
       month: "long",
@@ -419,13 +440,13 @@
     el.dailyDiff.textContent = DIFF_LABEL[d.difficulty];
     el.dailyDiff.className = "rating " + d.difficulty;
     const solved = state.daily.last === d.key;
-    el.dailyPlay.textContent = solved ? "Play again" : "Play";
+    el.dailyPlay.textContent = solved ? t("playAgain") : t("play");
     const streak = currentStreak();
     el.dailyNote.textContent = solved
-      ? `Solved today${streak > 1 ? ` · ${streak}-day streak` : ""}. A new one comes tomorrow.`
+      ? t("dailySolved", { streak })
       : streak > 0
-        ? `${streak}-day streak. Solve today's to keep it going.`
-        : "Everyone gets the same level today.";
+        ? t("dailyStreak", { streak })
+        : t("dailyFresh");
     el.dailyCard.classList.toggle("done", solved);
   }
   el.dailyPlay.addEventListener("click", () => playEndless(null, null, true));
@@ -438,12 +459,11 @@
     state.armed = null;
     const today = daily ? dailyFor() : null;
     if (today) difficulty = today.difficulty;
-    const label = daily
-      ? "today's"
+    const title = daily
+      ? t("buildDaily")
       : code
-        ? "that"
-        : "a " + DIFF_LABEL[difficulty].toLowerCase();
-    const title = `Building ${label} level…`;
+        ? t("buildCode")
+        : t("build" + difficulty[0].toUpperCase() + difficulty.slice(1));
     el.status.classList.remove("win", "warn");
     el.statusText.textContent = title;
     el.status.classList.add("busy");
@@ -493,19 +513,20 @@
       daily: daily ? today.key : null,
     };
     el.levelNo.textContent = daily
-      ? "DAILY · " +
+      ? t("daily") +
+        " · " +
         new Date()
-          .toLocaleDateString(undefined, { day: "numeric", month: "short" })
+          .toLocaleDateString(I18n.locale, { day: "numeric", month: "short" })
           .toUpperCase()
-      : "ENDLESS";
-    el.levelName.textContent = lv.name;
+      : t("endless");
+    el.levelName.textContent = levelName(lv);
     showDifficulty(lv.difficulty);
     el.prev.disabled = false;
     el.fwd.disabled = false;
-    el.prev.setAttribute("aria-label", "Back to the levels");
-    el.fwd.setAttribute("aria-label", "New level");
-    el.prev.title = "Back to the levels";
-    el.fwd.title = "New level";
+    el.prev.setAttribute("aria-label", t("backToLevels"));
+    el.fwd.setAttribute("aria-label", t("newLevel"));
+    el.prev.title = t("backToLevels");
+    el.fwd.title = t("newLevel");
     history.replaceState(null, "", "#" + lv.code);
     startLevel(lv);
     renderEndless();
@@ -519,7 +540,7 @@
   function renderEndless() {
     document.querySelectorAll("[data-diff]").forEach((b) => {
       const n = state.endlessSolved[b.dataset.diff] || 0;
-      b.querySelector(".solved").textContent = `${n} solved`;
+      b.querySelector(".solved").textContent = t("solvedCount", { n });
     });
     el.currentCode.hidden = !state.endless;
     if (state.endless) el.codeText.textContent = state.endless.level.code;
@@ -541,8 +562,8 @@
     const link =
       location.origin + location.pathname + "#" + state.endless.level.code;
     const done = () => {
-      el.copyCode.textContent = "Copied";
-      setTimeout(() => (el.copyCode.textContent = "Copy link"), 1500);
+      el.copyCode.textContent = t("copied");
+      setTimeout(() => (el.copyCode.textContent = t("copyLink")), 1500);
     };
     if (navigator.clipboard && navigator.clipboard.writeText)
       navigator.clipboard.writeText(link).then(done, () => {});
@@ -554,7 +575,7 @@
     state.result = L.trace(lv, state.pieces);
     playChanges(lv, state.result);
     const n = state.result.lit.filter(Boolean).length;
-    el.lit.textContent = `${n} / ${lv.receivers.length} lit`;
+    el.lit.textContent = t("lit", { n, total: lv.receivers.length });
     state.holdSince = state.result.solved ? performance.now() : null;
     state.confirmed = false;
     state.lastMove = performance.now();
@@ -563,7 +584,7 @@
     el.lit.classList.remove("all");
     el.board.setAttribute(
       "aria-label",
-      `Puzzle board, ${n} of ${lv.receivers.length} receivers lit`,
+      t("board", { n, total: lv.receivers.length }),
     );
     renderStatus();
     renderTray();
@@ -728,7 +749,7 @@
     const s = Math.round(ms / 1000);
     return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
   };
-  const movesText = (n) => `${n} move${n === 1 ? "" : "s"}`;
+  const movesText = (n) => t("moves", { n });
 
   function place(trayId, x, y) {
     act(() => {
@@ -863,7 +884,7 @@
   function solveText() {
     const s = state.lastSolve;
     if (!s) return "";
-    return ` ${movesText(s.moves)} · ${clock(s.ms)}${s.best ? " · new best!" : ""}`;
+    return ` ${movesText(s.moves)} · ${clock(s.ms)}${s.best ? " · " + t("newBest") : ""}`;
   }
 
   function renderStatus() {
@@ -875,17 +896,16 @@
     el.status.classList.toggle("win", won);
     el.status.classList.toggle("warn", !won && burning);
     el.statusText.textContent = won
-      ? (last ? "Level complete. That was the last one." : "Level complete.") +
-        solveText()
+      ? (last ? t("completeLast") : t("complete")) + solveText()
       : holding
-        ? "All receivers lit. Keep it like this to finish the level."
+        ? t("holding")
         : burning && res.lit.every(Boolean)
-          ? "Every receiver is lit, but light is hitting a dark sensor."
+          ? t("burning")
           : state.stuck
-            ? "Stuck? The hint button places one piece in its correct spot."
-            : level().hint;
+            ? t("stuck")
+            : levelHint(level());
     el.next.hidden = !won || last;
-    el.next.textContent = state.endless ? "New level →" : "Next level →";
+    el.next.textContent = state.endless ? t("newLevelBtn") : t("nextLevelBtn");
     el.hint.disabled = won;
   }
 
@@ -908,7 +928,7 @@
   /* Returns a sentence describing the result, and whether it worked. */
   function restore(code) {
     const p = code && Progress.decode(code);
-    if (!p) return ["That restore link is damaged.", false];
+    if (!p) return [t("restoreDamaged"), false];
     const r = Progress.mergeLocal(p);
     reloadProgress();
     const at = L.LEVELS.findIndex((lv) => lv.id === Progress.SAVE_IDS[p.level]);
@@ -917,7 +937,10 @@
   }
 
   function renderLevels() {
-    el.doneCount.textContent = `${state.done.size}/${L.LEVELS.length} done`;
+    el.doneCount.textContent = t("done", {
+      n: state.done.size,
+      total: L.LEVELS.length,
+    });
     el.grid.textContent = "";
     L.LEVELS.forEach((lv, i) => {
       // Levels run easy to hard; each difficulty starts a chapter.
@@ -940,12 +963,19 @@
         hints === undefined
           ? ""
           : hints === 0
-            ? "no hints"
-            : `${hints} hint${hints === 1 ? "" : "s"}`;
+            ? t("noHints")
+            : t("hints", { n: hints });
       b.setAttribute(
         "aria-label",
-        `Level ${i + 1}, ${lv.name}, ${DIFF_LABEL[lv.difficulty]}` +
-          (solved ? ", solved" + (hintText ? " with " + hintText : "") : ""),
+        t("tileLabel", {
+          n: i + 1,
+          name: levelName(lv),
+          diff: DIFF_LABEL[lv.difficulty],
+        }) +
+          (solved
+            ? t("tileSolved") +
+              (hintText ? t("tileWith", { hints: hintText }) : "")
+            : ""),
       );
       const num = document.createElement("span");
       num.className = "num";
@@ -958,12 +988,12 @@
       head.append(num, diff);
       const name = document.createElement("span");
       name.className = "nm";
-      name.textContent = lv.name;
+      name.textContent = levelName(lv);
       b.append(head, name);
       if (hintText) {
         const h = document.createElement("span");
         h.className = "hints" + (hints === 0 ? " none" : "");
-        h.textContent = hints === 0 ? "no hints" : `💡 ${hintText}`;
+        h.textContent = hints === 0 ? hintText : `💡 ${hintText}`;
         b.append(h);
       }
       const best = solved && state.bestStats[lv.id];
@@ -1002,11 +1032,22 @@
       loadLevel(Math.min(L.LEVELS.length - 1, state.level + 1));
   });
 
+  const COLOR_KEY = {
+    7: "white",
+    4: "red",
+    2: "green",
+    1: "blue",
+    6: "yellow",
+    5: "magenta",
+    3: "cyan",
+  };
+  const pieceLabel = (p) =>
+    p.type === "filter" ? t(COLOR_KEY[p.color]) : t(p.type);
   const trayName = (id) => {
-    const [type, mask] = id.split(":");
-    return type === "filter"
-      ? `${L.COLOR_NAMES[mask]} filter`
-      : L.PIECES[type].label;
+    const p = L.pieceFromTrayId(id, 0, 0);
+    return p.type === "filter"
+      ? t("filterName", { color: t(COLOR_KEY[p.color]) })
+      : t(p.type);
   };
 
   function renderTray() {
@@ -1021,7 +1062,10 @@
         "chip" +
         (state.armed === id ? " armed" : "") +
         (count <= 0 ? " empty" : "");
-      chip.setAttribute("aria-label", `${trayName(id)}, ${count} left`);
+      chip.setAttribute(
+        "aria-label",
+        t("left", { name: trayName(id), n: count }),
+      );
       chip.setAttribute("aria-pressed", state.armed === id ? "true" : "false");
 
       const icon = document.createElement("canvas");
@@ -1039,8 +1083,7 @@
 
       const name = document.createElement("span");
       name.className = "name";
-      name.textContent =
-        p.type === "filter" ? L.COLOR_NAMES[p.color] : L.PIECES[p.type].label;
+      name.textContent = pieceLabel(p);
       chip.appendChild(name);
 
       const cnt = document.createElement("span");
@@ -1232,28 +1275,28 @@
   const svg = (d) => `<svg viewBox="0 0 24 24" aria-hidden="true">${d}</svg>`;
   const ACTIONS = {
     left: {
-      label: "Turn left (Shift+R)",
+      label: t("turnLeft"),
       icon: svg(
         '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>',
       ),
       run: (p) => rotate(p, -1),
     },
     right: {
-      label: "Turn right (R)",
+      label: t("turnRight"),
       icon: svg(
         '<path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/>',
       ),
       run: (p) => rotate(p, 1),
     },
     flip: {
-      label: "Flip (F)",
+      label: t("flip"),
       icon: svg(
         '<path d="M12 3v18" stroke-dasharray="2 3"/><path d="M8.5 7 3 17h5.5z"/><path d="M15.5 7 21 17h-5.5z"/>',
       ),
       run: (p) => rotate(p, 1),
     },
     remove: {
-      label: "Back to the tray (Delete)",
+      label: t("takeBack"),
       icon: svg(
         '<path d="M4 7h16"/><path d="M10 11v6M14 11v6"/><path d="M6 7l1 13h10l1-13"/><path d="M9 7V4h6v3"/>',
       ),
@@ -1552,8 +1595,8 @@
   if (restoreCode) {
     const [text, ok] = restore(restoreCode[1]);
     el.statusText.textContent = ok
-      ? text + " Settings has the save code for later."
-      : text + " Ask for a new one, or type the save code in Settings.";
+      ? text + t("restoreOkTail")
+      : text + t("restoreBadTail");
     el.status.classList.toggle("win", ok);
     el.status.classList.toggle("warn", !ok);
     history.replaceState(null, "", location.pathname);

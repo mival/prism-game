@@ -353,6 +353,7 @@
 
   /* One sentence about a restore, for the page to show. */
   function describeRestore(r) {
+    if (root.PrismI18n) return root.PrismI18n.t("restored", r);
     return (
       `Restored ${r.solved} solved level${r.solved === 1 ? "" : "s"}` +
       (r.added < r.solved ? ` (${r.added} new here)` : "") +
