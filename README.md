@@ -65,4 +65,15 @@ To add a theme, copy the light block in `theme.css` under a new `:root[data-them
 
 Every level stores one known solution, used by the hint button. The first 13 levels made (First Light to Daybreak) were designed by hand; the rest were made by a generator that builds a level backwards from a random intended solution; a search over all piece placements then checked each one: unsolved at the start, solvable, needing every intended piece, and with decoy pieces that add no new solutions. Decoys are spare mirrors, prisms and splitters wherever one fits cleanly, since a spare filter is easy to rule out at a glance; Endless levels follow the same rule.
 
-The site is a static page; `.github/workflows/pages.yml` deploys it to GitHub Pages on every push to `main`.
+## Tests
+
+`tests/` holds the test suite: Node's built-in test runner for the rules, levels, save codes and generator, and Playwright (Chromium) for the game in a browser: every level solved by touch, undo, hints and statistics, restore links, today's level, Endless, offline play and installability, small screens, and the Czech translation (any English text left untranslated fails). Run it with:
+
+```
+npm ci
+npx playwright install chromium
+npm test
+npm run format:check
+```
+
+The site is a static page with no build step. `.github/workflows/pages.yml` runs the tests and the formatting check on every pull request and every push to `main`, and deploys to GitHub Pages only when they pass.

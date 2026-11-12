@@ -1,0 +1,14 @@
+{
+  "name": "prism-game",
+  "private": true,
+  "description": "Prism, a light puzzle game. The site itself needs no build; these tools only test it.",
+  "scripts": {
+    "test": "node --test --test-concurrency=2 --test-reporter=spec \"tests/*.test.js\"",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "playwright": "1.63.0",
+    "prettier": "3.8.1"
+  }
+}
