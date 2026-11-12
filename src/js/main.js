@@ -209,8 +209,8 @@
       if (targets.has(k))
         arrival.set(k, Math.min(arrival.get(k) ?? Infinity, r.dist + r.len));
     }
-    // 240–500 ms: short changes stay visible, long paths don't drag.
-    const ms = Math.max(240, Math.min(500, (end - start) * 55));
+    // 120–260 ms: quick enough not to slow play, still visible.
+    const ms = Math.max(120, Math.min(260, (end - start) * 25));
     const speed = Math.max(1e-3, (end - start) / ms); // cells per ms
     return {
       fresh,
