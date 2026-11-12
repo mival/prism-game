@@ -305,12 +305,22 @@
     }
   }
 
-  /* Progress saved in this browser. */
+  /* The level being played, by id. Older versions stored its position in
+     the level list (prism.level), which then matched SAVE_IDS order. */
+  function currentLevelId() {
+    const id = read("prism.levelId", null);
+    if (SAVE_IDS.includes(id)) return id;
+    return SAVE_IDS[Number(read("prism.level", 0)) || 0] || SAVE_IDS[0];
+  }
+
+  /* Progress saved in this browser. `level` is a position in SAVE_IDS,
+     which never changes, so codes keep pointing at the same level even if
+     the game reorders its levels. */
   function readLocal() {
     return {
       done: read("prism.done", []),
       endless: { easy: 0, medium: 0, hard: 0, ...read("prism.endless", {}) },
-      level: Number(read("prism.level", 0)) || 0,
+      level: SAVE_IDS.indexOf(currentLevelId()),
       // Fewest hints per solved level. Kept on this device only; save
       // codes don't carry it, to keep them short.
       hints: read("prism.hints", {}),
@@ -332,7 +342,7 @@
       if (hints[id] === undefined || h < hints[id]) hints[id] = h;
     write("prism.done", [...done]);
     write("prism.endless", endless);
-    write("prism.level", p.level);
+    write("prism.levelId", SAVE_IDS[p.level] || currentLevelId());
     write("prism.hints", hints);
     return {
       added: done.size - before,
@@ -343,6 +353,7 @@
 
   /* One sentence about a restore, for the page to show. */
   function describeRestore(r) {
+    if (root.PrismI18n) return root.PrismI18n.t("restored", r);
     return (
       `Restored ${r.solved} solved level${r.solved === 1 ? "" : "s"}` +
       (r.added < r.solved ? ` (${r.added} new here)` : "") +
@@ -355,7 +366,9 @@
     write("prism.done", []);
     write("prism.endless", { easy: 0, medium: 0, hard: 0 });
     write("prism.level", 0);
+    write("prism.levelId", SAVE_IDS[0]);
     write("prism.hints", {});
+    write("prism.stats", {});
     write("prism.attempt", { id: null, hints: 0 });
   }
 
@@ -367,6 +380,7 @@
     mergeLocal,
     describeRestore,
     resetLocal,
+    currentLevelId,
     SAVE_IDS,
   };
   if (typeof module !== "undefined" && module.exports) module.exports = api;

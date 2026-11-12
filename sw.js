@@ -8,7 +8,7 @@
    without an answer. Fonts never change, so they come from the cache first.
 
    Bump VERSION when this list changes to replace the old cache. */
-const VERSION = "prism-v3";
+const VERSION = "prism-v4";
 const FILES = [
   "./",
   "index.html",
@@ -28,6 +28,8 @@ const FILES = [
   "src/js/help.js",
   "src/js/pwa.js",
   "src/js/sound.js",
+  "src/js/i18n.js",
+  "src/js/levels-cs.js",
   "src/vendor/qrcode.js",
   "icons/icon-192.png",
   "icons/icon-512.png",

@@ -13,6 +13,13 @@
     levelName: $("levelName"),
     levelDiff: $("levelDiff"),
     lit: $("lit"),
+    dailyCard: $("dailyCard"),
+    dailyDate: $("dailyDate"),
+    dailyDiff: $("dailyDiff"),
+    dailyPlay: $("dailyPlay"),
+    dailyNote: $("dailyNote"),
+    undo: $("undo"),
+    redo: $("redo"),
     status: $("status"),
     statusText: $("statusText"),
     next: $("next"),
@@ -44,6 +51,9 @@
      this long, so tapping pieces at random can't finish it by passing
      through a solved state on the way to the next rotation. */
   const SOLVE_HOLD_MS = 1500;
+  /* Text in the player's language (src/js/i18n.js). */
+  const I18n = window.PrismI18n;
+  const t = I18n.t;
   /* Sound effects (src/js/sound.js); every call is a no-op when muted. */
   const Sound = window.PrismSound;
   /* After this long without a move, the hint button offers itself. */
@@ -77,7 +87,19 @@
     attempt: load("prism.attempt", { id: null, hints: 0 }),
     endless: null,
     endlessSolved: load("prism.endless", { easy: 0, medium: 0, hard: 0 }),
+    /* Daily level: last date solved (YYYY-MM-DD) and the streak of days. */
+    daily: load("prism.daily", { last: null, streak: 0 }),
     prefetch: null,
+    /* Undo and redo: board snapshots before each change. */
+    undo: [],
+    redo: [],
+    /* This attempt: moves made and active play time. */
+    moves: 0,
+    playMs: 0,
+    playFrom: null,
+    /* Best solve per campaign level: { id: { moves, ms } }. */
+    bestStats: load("prism.stats", {}),
+    lastSolve: null,
     busy: false,
     S: 1,
     baseDirty: true,
@@ -121,6 +143,12 @@
 
   function startLevel(lv) {
     state.prevLit = null;
+    state.undo = [];
+    state.redo = [];
+    state.moves = 0;
+    state.playMs = 0;
+    state.playFrom = document.hidden ? null : performance.now();
+    state.lastSolve = null;
     Sound.holdStop();
     state.pieces = L.fixedPieces(lv);
     state.inv = { ...lv.tray };
@@ -128,6 +156,7 @@
     state.drag = null;
     hideTools();
     update();
+    renderUndo();
   }
 
   function loadLevel(i) {
@@ -144,19 +173,19 @@
     // The word "LEVEL" is dropped on narrow screens to leave room for the
     // difficulty tag.
     el.levelNo.innerHTML =
-      '<span class="lvl-word">LEVEL </span>' +
+      `<span class="lvl-word">${t("levelWord")}</span>` +
       String(i + 1).padStart(2, "0") +
       " / " +
       String(L.LEVELS.length).padStart(2, "0");
-    el.levelName.textContent = level().name;
+    el.levelName.textContent = levelName(level());
     showDifficulty(level().difficulty);
     el.prev.disabled = i === 0;
     el.fwd.disabled = i === L.LEVELS.length - 1;
-    el.prev.setAttribute("aria-label", "Previous level");
-    el.fwd.setAttribute("aria-label", "Next level");
-    el.prev.title = "Previous level";
-    el.fwd.title = "Next level";
-    save("prism.level", i);
+    el.prev.setAttribute("aria-label", t("prevLevel"));
+    el.fwd.setAttribute("aria-label", t("nextLevel"));
+    el.prev.title = t("prevLevel");
+    el.fwd.title = t("nextLevel");
+    save("prism.levelId", L.LEVELS[i].id);
     if (location.hash) history.replaceState(null, "", location.pathname);
     startLevel(level());
   }
@@ -167,7 +196,28 @@
      board keeps animating. Pages opened from file:// can't start workers;
      there the level is built on the page instead. While a level is being
      played, the next one of the same difficulty is already being built. */
-  const DIFF_LABEL = { easy: "Easy", medium: "Medium", hard: "Hard" };
+  const DIFF_LABEL = { easy: t("easy"), medium: t("medium"), hard: t("hard") };
+
+  /* A level's name and hint in the current language. Endless levels get
+     their hint from what they contain. */
+  const levelName = (lv) =>
+    lv.code ? I18n.endlessName(lv.name) : I18n.levelText(lv).name;
+  function levelHint(lv) {
+    if (!lv.code) return I18n.levelText(lv).hint;
+    const parts = [];
+    if (lv.portals) parts.push(t("mPortals"));
+    if (lv.sensors) parts.push(t("mSensors"));
+    if (lv.doors) parts.push(t("mDoors"));
+    if (lv.fixed) parts.push(t("mFixed"));
+    if (lv.sources.length > 1) parts.push(t("mLasers"));
+    const pieces = Object.values(lv.tray).reduce((a, b) => a + b, 0);
+    const decoys = pieces > lv.solution.placed.length;
+    return (
+      (parts.length
+        ? t("hasThese", { list: I18n.list(parts) })
+        : t("lightAll")) + (decoys ? t("notEvery") : "")
+    );
+  }
 
   /* The tag beside the level number: how hard this level is. */
   function showDifficulty(d) {
@@ -204,7 +254,11 @@
 
     /* Returns { promise, cancel }. The promise gives the level, or null if
        none was found or the build was cancelled. */
-    function build(msg, { cores = 1, onProgress } = {}) {
+    /* `exact`: return the level with the lowest valid seed at or after
+       msg.seed, so every device builds the same one (the daily level).
+       Workers keep searching their share of seeds until they find a level
+       or pass the best one found so far. */
+    function build(msg, { cores = 1, onProgress, exact = false } = {}) {
       let workers = [];
       try {
         if (supported)
@@ -229,19 +283,48 @@
       const tried = workers.map(() => 0);
       let left = workers.length;
       let failed = false;
+      let best = null;
+      const seedOf = (lv) => Number(lv.code.split("-")[1]);
+      const stopped = workers.map(() => false);
+      const finish1 = (i) => {
+        if (stopped[i]) return;
+        stopped[i] = true;
+        if (--left === 0) end(best || (failed ? local(msg) : null));
+      };
       workers.forEach((w, i) => {
         w.onmessage = (e) => {
           if ("tried" in e.data) {
             tried[i] = e.data.tried;
             if (onProgress) onProgress(tried.reduce((a, b) => a + b, 0));
+            // Past the best seed found so far: nothing lower can come from here.
+            const at = msg.seed + i + (tried[i] - 1) * workers.length;
+            if (exact && best && at > seedOf(best)) {
+              w.terminate();
+              finish1(i);
+            }
             return;
           }
-          if (e.data.level) return end(e.data.level);
-          if (--left === 0) end(failed ? local(msg) : null);
+          if (!exact) {
+            if (e.data.level) return end(e.data.level);
+            if (--left === 0) end(failed ? local(msg) : null);
+            return;
+          }
+          const lv = e.data.level;
+          if (lv && (!best || seedOf(lv) < seedOf(best))) best = lv;
+          finish1(i);
+          // Others already past it can stop now.
+          workers.forEach((x, j) => {
+            const at = msg.seed + j + (tried[j] - 1) * workers.length;
+            if (!stopped[j] && tried[j] && at > seedOf(best)) {
+              x.terminate();
+              finish1(j);
+            }
+          });
         };
         w.onerror = (e) => {
           e.preventDefault();
           failed = true;
+          if (exact) return finish1(i);
           if (--left === 0) end(local(msg));
         };
         w.postMessage(
@@ -270,9 +353,9 @@
   /* Shown over the board when a build takes more than a moment: what is
      being built, roughly how long it takes, live progress, and Cancel. */
   const TYPICAL = {
-    easy: "This takes a moment.",
-    medium: "This usually takes a second or two.",
-    hard: "Hard levels usually take a few seconds.",
+    easy: t("typicalEasy"),
+    medium: t("typicalMedium"),
+    hard: t("typicalHard"),
   };
   const building = { job: null, timer: 0, tick: 0, started: 0, tried: 0 };
 
@@ -280,7 +363,7 @@
     el.buildTitle.textContent = title;
     el.buildInfo.textContent = difficulty
       ? TYPICAL[difficulty]
-      : "Rebuilding the level from its code.";
+      : t("rebuilding");
     el.buildProgress.textContent = "";
     el.building.hidden = false;
     building.tick = setInterval(renderProgress, 250);
@@ -288,10 +371,7 @@
   function renderProgress() {
     const s = Math.floor((performance.now() - building.started) / 1000);
     const parts = [];
-    if (building.tried)
-      parts.push(
-        `${building.tried} layout${building.tried === 1 ? "" : "s"} tried`,
-      );
+    if (building.tried) parts.push(t("tried", { n: building.tried }));
     if (s >= 1) parts.push(`${s} s`);
     el.buildProgress.textContent = parts.join(" · ");
   }
@@ -305,14 +385,85 @@
     if (building.job) building.job.cancel();
   });
 
-  async function playEndless(difficulty, code) {
+  /* ------------------------------ daily ------------------------------ */
+
+  /* One level per day, the same for everyone on the same date: its seed
+     comes from the date, and the lowest valid seed from there is used. */
+  const DAILY_BY_WEEKDAY = [
+    "hard", // Sunday
+    "easy",
+    "medium",
+    "hard",
+    "easy",
+    "medium",
+    "hard",
+  ];
+  const dayKey = (d = new Date()) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  function dailyFor(d = new Date()) {
+    const key = dayKey(d);
+    let h = 0x811c9dc5;
+    for (const ch of "prism-daily-" + key)
+      h = Math.imul(h ^ ch.charCodeAt(0), 0x01000193) >>> 0;
+    return {
+      key,
+      difficulty: DAILY_BY_WEEKDAY[d.getDay()],
+      seed: 1 + (h % 900000),
+    };
+  }
+  function yesterdayKey() {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    return dayKey(d);
+  }
+  /* The streak only counts if the last solve was today or yesterday. */
+  const currentStreak = () =>
+    state.daily.last === dayKey() || state.daily.last === yesterdayKey()
+      ? state.daily.streak
+      : 0;
+  function recordDaily(key) {
+    if (state.daily.last === key) return;
+    state.daily = {
+      last: key,
+      streak: state.daily.last === yesterdayKey() ? state.daily.streak + 1 : 1,
+    };
+    save("prism.daily", state.daily);
+  }
+  function renderDaily() {
+    const d = dailyFor();
+    const date = new Date().toLocaleDateString(I18n.locale, {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+    });
+    el.dailyDate.textContent = date;
+    el.dailyDiff.textContent = DIFF_LABEL[d.difficulty];
+    el.dailyDiff.className = "rating " + d.difficulty;
+    const solved = state.daily.last === d.key;
+    el.dailyPlay.textContent = solved ? t("playAgain") : t("play");
+    const streak = currentStreak();
+    el.dailyNote.textContent = solved
+      ? t("dailySolved", { streak })
+      : streak > 0
+        ? t("dailyStreak", { streak })
+        : t("dailyFresh");
+    el.dailyCard.classList.toggle("done", solved);
+  }
+  el.dailyPlay.addEventListener("click", () => playEndless(null, null, true));
+
+  async function playEndless(difficulty, code, daily = false) {
     if (state.busy) return;
     if (el.dialog.open) el.dialog.close();
     state.busy = true;
     state.drag = null;
     state.armed = null;
-    const label = code ? "that" : "a " + DIFF_LABEL[difficulty].toLowerCase();
-    const title = `Building ${label} level…`;
+    const today = daily ? dailyFor() : null;
+    if (today) difficulty = today.difficulty;
+    const title = daily
+      ? t("buildDaily")
+      : code
+        ? t("buildCode")
+        : t("build" + difficulty[0].toUpperCase() + difficulty.slice(1));
     el.status.classList.remove("win", "warn");
     el.statusText.textContent = title;
     el.status.classList.add("busy");
@@ -320,7 +471,7 @@
 
     let lv = null;
     const pf = state.prefetch;
-    if (!code && pf && pf.difficulty === difficulty && pf.level) {
+    if (!code && !daily && pf && pf.difficulty === difficulty && pf.level) {
       // Ready in the background: no wait at all.
       lv = pf.level;
       state.prefetch = null;
@@ -331,10 +482,13 @@
       building.started = performance.now();
       building.tried = 0;
       const job = Builder.build(
-        code ? { code } : { difficulty, seed: randomSeed() },
+        code
+          ? { code }
+          : { difficulty, seed: daily ? today.seed : randomSeed() },
         {
           cores: Builder.CORES,
           onProgress: (n) => (building.tried = n),
+          exact: daily,
         },
       );
       building.job = job;
@@ -353,16 +507,26 @@
       if (code) showCodeError(true);
       return;
     }
-    state.endless = { difficulty: lv.difficulty, level: lv };
-    el.levelNo.textContent = "ENDLESS";
-    el.levelName.textContent = lv.name;
+    state.endless = {
+      difficulty: lv.difficulty,
+      level: lv,
+      daily: daily ? today.key : null,
+    };
+    el.levelNo.textContent = daily
+      ? t("daily") +
+        " · " +
+        new Date()
+          .toLocaleDateString(I18n.locale, { day: "numeric", month: "short" })
+          .toUpperCase()
+      : t("endless");
+    el.levelName.textContent = levelName(lv);
     showDifficulty(lv.difficulty);
     el.prev.disabled = false;
     el.fwd.disabled = false;
-    el.prev.setAttribute("aria-label", "Back to the levels");
-    el.fwd.setAttribute("aria-label", "New level");
-    el.prev.title = "Back to the levels";
-    el.fwd.title = "New level";
+    el.prev.setAttribute("aria-label", t("backToLevels"));
+    el.fwd.setAttribute("aria-label", t("newLevel"));
+    el.prev.title = t("backToLevels");
+    el.fwd.title = t("newLevel");
     history.replaceState(null, "", "#" + lv.code);
     startLevel(lv);
     renderEndless();
@@ -376,7 +540,7 @@
   function renderEndless() {
     document.querySelectorAll("[data-diff]").forEach((b) => {
       const n = state.endlessSolved[b.dataset.diff] || 0;
-      b.querySelector(".solved").textContent = `${n} solved`;
+      b.querySelector(".solved").textContent = t("solvedCount", { n });
     });
     el.currentCode.hidden = !state.endless;
     if (state.endless) el.codeText.textContent = state.endless.level.code;
@@ -398,8 +562,8 @@
     const link =
       location.origin + location.pathname + "#" + state.endless.level.code;
     const done = () => {
-      el.copyCode.textContent = "Copied";
-      setTimeout(() => (el.copyCode.textContent = "Copy link"), 1500);
+      el.copyCode.textContent = t("copied");
+      setTimeout(() => (el.copyCode.textContent = t("copyLink")), 1500);
     };
     if (navigator.clipboard && navigator.clipboard.writeText)
       navigator.clipboard.writeText(link).then(done, () => {});
@@ -411,7 +575,7 @@
     state.result = L.trace(lv, state.pieces);
     playChanges(lv, state.result);
     const n = state.result.lit.filter(Boolean).length;
-    el.lit.textContent = `${n} / ${lv.receivers.length} lit`;
+    el.lit.textContent = t("lit", { n, total: lv.receivers.length });
     state.holdSince = state.result.solved ? performance.now() : null;
     state.confirmed = false;
     state.lastMove = performance.now();
@@ -420,7 +584,7 @@
     el.lit.classList.remove("all");
     el.board.setAttribute(
       "aria-label",
-      `Puzzle board, ${n} of ${lv.receivers.length} receivers lit`,
+      t("board", { n, total: lv.receivers.length }),
     );
     renderStatus();
     renderTray();
@@ -451,9 +615,15 @@
     const lv = level();
     Sound.solved();
     state.confirmed = true;
+    pauseClock();
+    recordSolve(lv);
+    renderUndo();
     state.holdSince = null;
     el.lit.classList.add("all");
-    if (state.endless) {
+    if (state.endless && state.endless.daily) {
+      recordDaily(state.endless.daily);
+      renderDaily();
+    } else if (state.endless) {
       const d = state.endless.difficulty;
       state.endlessSolved[d] = (state.endlessSolved[d] || 0) + 1;
       save("prism.endless", state.endlessSolved);
@@ -477,25 +647,132 @@
     renderLevels();
   }
 
-  function place(trayId, x, y) {
-    const p = L.pieceFromTrayId(trayId, x, y);
-    p.trayId = trayId;
-    state.pieces.push(p);
-    state.inv[trayId]--;
-    Sound.place();
-    if (state.inv[trayId] <= 0) state.armed = null;
+  /* ------------------------------ undo ------------------------------ */
+
+  /* The board as text: enough to put it back exactly. */
+  function snapshot() {
+    // Fixed pieces keep their order (hints rely on it); the rest are sorted
+    // by tile, so dragging a piece back to its own tile is no change.
+    const fixed = state.pieces.filter((p) => p.fixed);
+    const placed = state.pieces
+      .filter((p) => !p.fixed)
+      .sort((a, b) => a.y - b.y || a.x - b.x);
+    return JSON.stringify({
+      pieces: fixed.concat(placed).map((p) => ({
+        type: p.type,
+        x: p.x,
+        y: p.y,
+        k: p.k,
+        color: p.color,
+        trayId: p.trayId,
+        fixed: p.fixed,
+        hinted: p.hinted,
+      })),
+      inv: state.inv,
+    });
+  }
+  function restoreSnapshot(snap) {
+    const s = JSON.parse(snap);
+    state.pieces = s.pieces.map((p) => {
+      const q = { ...p };
+      for (const k of Object.keys(q)) if (q[k] === undefined) delete q[k];
+      return q;
+    });
+    state.inv = s.inv;
+    state.armed = null;
+    hideTools();
     update();
+  }
+  /* Records `before` as an undo step if the board really changed (moving a
+     piece back where it was is not a step). Player moves count as moves;
+     hints don't. */
+  function commit(before, move) {
+    if (snapshot() === before) return;
+    state.undo.push(before);
+    if (state.undo.length > 300) state.undo.shift();
+    state.redo = [];
+    if (move) state.moves++;
+    renderUndo();
+  }
+  function act(fn, move = true) {
+    const before = snapshot();
+    fn();
+    commit(before, move);
+  }
+  function undo() {
+    if (!state.undo.length || state.confirmed || state.busy || state.drag)
+      return;
+    state.redo.push(snapshot());
+    restoreSnapshot(state.undo.pop());
+    Sound.pickup();
+    renderUndo();
+  }
+  function redo() {
+    if (!state.redo.length || state.confirmed || state.busy || state.drag)
+      return;
+    state.undo.push(snapshot());
+    restoreSnapshot(state.redo.pop());
+    Sound.pickup();
+    renderUndo();
+  }
+  function renderUndo() {
+    el.undo.disabled = !state.undo.length || state.confirmed;
+    el.redo.disabled = !state.redo.length || state.confirmed;
+  }
+  el.undo.addEventListener("click", undo);
+  el.redo.addEventListener("click", redo);
+  window.addEventListener("keydown", (e) => {
+    if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+    const t = e.target;
+    if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA")) return;
+    const k = e.key.toLowerCase();
+    if (k === "z" && !e.shiftKey) undo();
+    else if ((k === "z" && e.shiftKey) || k === "y") redo();
+    else return;
+    e.preventDefault();
+  });
+
+  /* ------------------------------ moves and time ------------------------------ */
+
+  /* Play time only runs while the page is visible and the level unsolved. */
+  function pauseClock() {
+    if (state.playFrom === null) return;
+    state.playMs += performance.now() - state.playFrom;
+    state.playFrom = null;
+  }
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) pauseClock();
+    else if (!state.confirmed && state.playFrom === null)
+      state.playFrom = performance.now();
+  });
+  const clock = (ms) => {
+    const s = Math.round(ms / 1000);
+    return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+  };
+  const movesText = (n) => t("moves", { n });
+
+  function place(trayId, x, y) {
+    act(() => {
+      const p = L.pieceFromTrayId(trayId, x, y);
+      p.trayId = trayId;
+      state.pieces.push(p);
+      state.inv[trayId]--;
+      Sound.place();
+      if (state.inv[trayId] <= 0) state.armed = null;
+      update();
+    });
   }
 
   /* Turns a piece by `by` steps (negative turns it back). */
   function rotate(p, by = 1) {
     const states = L.PIECES[p.type].states;
-    if (states > 1 && !p.hinted) {
-      if (states === 2) Sound.flip();
-      else Sound.rotate();
-      p.k = (((p.k + by) % states) + states) % states;
-      update();
-    }
+    if (states > 1 && !p.hinted)
+      act(() => {
+        if (states === 2) Sound.flip();
+        else Sound.rotate();
+        p.k = (((p.k + by) % states) + states) % states;
+        update();
+      });
   }
 
   const movable = (p) => !p.fixed && !p.hinted;
@@ -503,10 +780,12 @@
   /* Takes a placed piece back to the tray. */
   function takeBack(p) {
     if (!movable(p)) return;
-    state.pieces = state.pieces.filter((q) => q !== p);
-    state.inv[p.trayId]++;
-    Sound.remove();
-    update();
+    act(() => {
+      state.pieces = state.pieces.filter((q) => q !== p);
+      state.inv[p.trayId]++;
+      Sound.remove();
+      update();
+    });
   }
 
   /* ------------------------------ hints ------------------------------ */
@@ -518,6 +797,9 @@
      in place, further hints take extra pieces back to the tray. */
   function giveHint() {
     if (state.confirmed) return;
+    act(giveHintNow, false);
+  }
+  function giveHintNow() {
     if (!state.endless) {
       state.attempt.hints++;
       save("prism.attempt", state.attempt);
@@ -584,6 +866,27 @@
 
   /* ------------------------------ UI chrome ------------------------------ */
 
+  /* Moves and time for this solve; the best of each is kept per level. */
+  function recordSolve(lv) {
+    const moves = state.moves;
+    const ms = state.playMs;
+    let best = false;
+    if (!state.endless) {
+      const prev = state.bestStats[lv.id];
+      best = !!prev && (moves < prev.moves || ms < prev.ms);
+      state.bestStats[lv.id] = prev
+        ? { moves: Math.min(prev.moves, moves), ms: Math.min(prev.ms, ms) }
+        : { moves, ms };
+      save("prism.stats", state.bestStats);
+    }
+    state.lastSolve = { moves, ms, best };
+  }
+  function solveText() {
+    const s = state.lastSolve;
+    if (!s) return "";
+    return ` ${movesText(s.moves)} · ${clock(s.ms)}${s.best ? " · " + t("newBest") : ""}`;
+  }
+
   function renderStatus() {
     const last = !state.endless && state.level === L.LEVELS.length - 1;
     const won = state.confirmed;
@@ -593,18 +896,16 @@
     el.status.classList.toggle("win", won);
     el.status.classList.toggle("warn", !won && burning);
     el.statusText.textContent = won
-      ? last
-        ? "Level complete. That was the last one."
-        : "Level complete."
+      ? (last ? t("completeLast") : t("complete")) + solveText()
       : holding
-        ? "All receivers lit. Keep it like this to finish the level."
+        ? t("holding")
         : burning && res.lit.every(Boolean)
-          ? "Every receiver is lit, but light is hitting a dark sensor."
+          ? t("burning")
           : state.stuck
-            ? "Stuck? The hint button places one piece in its correct spot."
-            : level().hint;
+            ? t("stuck")
+            : levelHint(level());
     el.next.hidden = !won || last;
-    el.next.textContent = state.endless ? "New level →" : "Next level →";
+    el.next.textContent = state.endless ? t("newLevelBtn") : t("nextLevelBtn");
     el.hint.disabled = won;
   }
 
@@ -627,17 +928,30 @@
   /* Returns a sentence describing the result, and whether it worked. */
   function restore(code) {
     const p = code && Progress.decode(code);
-    if (!p) return ["That restore link is damaged.", false];
+    if (!p) return [t("restoreDamaged"), false];
     const r = Progress.mergeLocal(p);
     reloadProgress();
-    if (!state.endless && p.level < L.LEVELS.length) loadLevel(p.level);
+    const at = L.LEVELS.findIndex((lv) => lv.id === Progress.SAVE_IDS[p.level]);
+    if (!state.endless && at >= 0) loadLevel(at);
     return [Progress.describeRestore(r), true];
   }
 
   function renderLevels() {
-    el.doneCount.textContent = `${state.done.size}/${L.LEVELS.length} done`;
+    el.doneCount.textContent = t("done", {
+      n: state.done.size,
+      total: L.LEVELS.length,
+    });
     el.grid.textContent = "";
     L.LEVELS.forEach((lv, i) => {
+      // Levels run easy to hard; each difficulty starts a chapter.
+      if (i === 0 || L.LEVELS[i - 1].difficulty !== lv.difficulty) {
+        const all = L.LEVELS.filter((l) => l.difficulty === lv.difficulty);
+        const solved = all.filter((l) => state.done.has(l.id)).length;
+        const h = document.createElement("h3");
+        h.className = "chapter " + lv.difficulty;
+        h.innerHTML = `<span>${DIFF_LABEL[lv.difficulty]}</span><span class="count">${solved} / ${all.length}</span>`;
+        el.grid.appendChild(h);
+      }
       const b = document.createElement("button");
       b.type = "button";
       const solved = state.done.has(lv.id);
@@ -649,12 +963,19 @@
         hints === undefined
           ? ""
           : hints === 0
-            ? "no hints"
-            : `${hints} hint${hints === 1 ? "" : "s"}`;
+            ? t("noHints")
+            : t("hints", { n: hints });
       b.setAttribute(
         "aria-label",
-        `Level ${i + 1}, ${lv.name}, ${DIFF_LABEL[lv.difficulty]}` +
-          (solved ? ", solved" + (hintText ? " with " + hintText : "") : ""),
+        t("tileLabel", {
+          n: i + 1,
+          name: levelName(lv),
+          diff: DIFF_LABEL[lv.difficulty],
+        }) +
+          (solved
+            ? t("tileSolved") +
+              (hintText ? t("tileWith", { hints: hintText }) : "")
+            : ""),
       );
       const num = document.createElement("span");
       num.className = "num";
@@ -667,13 +988,20 @@
       head.append(num, diff);
       const name = document.createElement("span");
       name.className = "nm";
-      name.textContent = lv.name;
+      name.textContent = levelName(lv);
       b.append(head, name);
       if (hintText) {
         const h = document.createElement("span");
         h.className = "hints" + (hints === 0 ? " none" : "");
-        h.textContent = hints === 0 ? "no hints" : `💡 ${hintText}`;
+        h.textContent = hints === 0 ? hintText : `💡 ${hintText}`;
         b.append(h);
+      }
+      const best = solved && state.bestStats[lv.id];
+      if (best) {
+        const st = document.createElement("span");
+        st.className = "stats";
+        st.textContent = `${movesText(best.moves)} · ${clock(best.ms)}`;
+        b.append(st);
       }
       b.addEventListener("click", () => {
         el.dialog.close();
@@ -684,6 +1012,7 @@
   }
 
   el.levelsBtn.addEventListener("click", () => {
+    renderDaily();
     if (el.dialog.showModal) el.dialog.showModal();
     else el.dialog.setAttribute("open", "");
     const cur = el.grid.querySelector('[aria-current="true"]');
@@ -703,11 +1032,22 @@
       loadLevel(Math.min(L.LEVELS.length - 1, state.level + 1));
   });
 
+  const COLOR_KEY = {
+    7: "white",
+    4: "red",
+    2: "green",
+    1: "blue",
+    6: "yellow",
+    5: "magenta",
+    3: "cyan",
+  };
+  const pieceLabel = (p) =>
+    p.type === "filter" ? t(COLOR_KEY[p.color]) : t(p.type);
   const trayName = (id) => {
-    const [type, mask] = id.split(":");
-    return type === "filter"
-      ? `${L.COLOR_NAMES[mask]} filter`
-      : L.PIECES[type].label;
+    const p = L.pieceFromTrayId(id, 0, 0);
+    return p.type === "filter"
+      ? t("filterName", { color: t(COLOR_KEY[p.color]) })
+      : t(p.type);
   };
 
   function renderTray() {
@@ -722,7 +1062,10 @@
         "chip" +
         (state.armed === id ? " armed" : "") +
         (count <= 0 ? " empty" : "");
-      chip.setAttribute("aria-label", `${trayName(id)}, ${count} left`);
+      chip.setAttribute(
+        "aria-label",
+        t("left", { name: trayName(id), n: count }),
+      );
       chip.setAttribute("aria-pressed", state.armed === id ? "true" : "false");
 
       const icon = document.createElement("canvas");
@@ -740,8 +1083,7 @@
 
       const name = document.createElement("span");
       name.className = "name";
-      name.textContent =
-        p.type === "filter" ? L.COLOR_NAMES[p.color] : L.PIECES[p.type].label;
+      name.textContent = pieceLabel(p);
       chip.appendChild(name);
 
       const cnt = document.createElement("span");
@@ -855,6 +1197,7 @@
       (d.kind === "tray" || movable(d.piece))
     ) {
       d.active = true;
+      d.before = snapshot();
       Sound.pickup();
       state.armed = null;
       hideTools();
@@ -910,6 +1253,7 @@
       state.pieces.push(p);
     }
     update();
+    commit(d.before, true);
   }
 
   window.addEventListener("pointerup", (e) => endDrag(e, false));
@@ -931,28 +1275,28 @@
   const svg = (d) => `<svg viewBox="0 0 24 24" aria-hidden="true">${d}</svg>`;
   const ACTIONS = {
     left: {
-      label: "Turn left (Shift+R)",
+      label: t("turnLeft"),
       icon: svg(
         '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>',
       ),
       run: (p) => rotate(p, -1),
     },
     right: {
-      label: "Turn right (R)",
+      label: t("turnRight"),
       icon: svg(
         '<path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/>',
       ),
       run: (p) => rotate(p, 1),
     },
     flip: {
-      label: "Flip (F)",
+      label: t("flip"),
       icon: svg(
         '<path d="M12 3v18" stroke-dasharray="2 3"/><path d="M8.5 7 3 17h5.5z"/><path d="M15.5 7 21 17h-5.5z"/>',
       ),
       run: (p) => rotate(p, 1),
     },
     remove: {
-      label: "Back to the tray (Delete)",
+      label: t("takeBack"),
       icon: svg(
         '<path d="M4 7h16"/><path d="M10 11v6M14 11v6"/><path d="M6 7l1 13h10l1-13"/><path d="M9 7V4h6v3"/>',
       ),
@@ -1241,7 +1585,9 @@
 
   readTheme();
   new ResizeObserver(layout).observe(el.stage);
-  const savedLevel = Number(load("prism.level", 0));
+  const savedLevel = L.LEVELS.findIndex(
+    (lv) => lv.id === Progress.currentLevelId(),
+  );
   const sharedCode = /^#([EMH]-\d{1,9})$/i.exec(location.hash);
   const restoreCode = /^#restore-([0-9A-Za-z]+)$/.exec(location.hash);
   loadLevel(savedLevel >= 0 && savedLevel < L.LEVELS.length ? savedLevel : 0);
@@ -1249,8 +1595,8 @@
   if (restoreCode) {
     const [text, ok] = restore(restoreCode[1]);
     el.statusText.textContent = ok
-      ? text + " Settings has the save code for later."
-      : text + " Ask for a new one, or type the save code in Settings.";
+      ? text + t("restoreOkTail")
+      : text + t("restoreBadTail");
     el.status.classList.toggle("win", ok);
     el.status.classList.toggle("warn", !ok);
     history.replaceState(null, "", location.pathname);

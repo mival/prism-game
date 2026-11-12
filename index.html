@@ -9,6 +9,30 @@
     <meta name="theme-color" content="#0a0c0f" />
     <meta name="prism-version" content="dev" data-date="" />
     <title>Prism</title>
+    <meta
+      name="description"
+      content="A light puzzle game: bend lasers with mirrors, prisms and splitters until every receiver lights up. 60 levels, a daily level, endless mode, and it works offline."
+    />
+    <link rel="canonical" href="https://mival.github.io/prism-game/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Prism" />
+    <meta property="og:title" content="Prism" />
+    <meta
+      property="og:description"
+      content="A light puzzle game: bend lasers with mirrors, prisms and splitters until every receiver lights up. 60 levels, a daily level, endless mode, and it works offline."
+    />
+    <meta property="og:url" content="https://mival.github.io/prism-game/" />
+    <meta
+      property="og:image"
+      content="https://mival.github.io/prism-game/icons/og-image.png"
+    />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="Prism: a laser split by a prism into red, green and blue beams that light three receivers."
+    />
+    <meta name="twitter:card" content="summary_large_image" />
     <script>
       try {
         var saved = localStorage.getItem("prism.theme");
@@ -25,6 +49,8 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="Prism" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <script src="src/js/levels-cs.js"></script>
+    <script src="src/js/i18n.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -134,11 +160,65 @@
         >
           ›
         </button>
-        <span class="lit" id="lit">0 / 1 lit</span>
+        <button
+          class="icon-btn"
+          id="undo"
+          type="button"
+          aria-label="Undo"
+          title="Undo (Ctrl+Z)"
+          disabled
+        >
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+            <path
+              d="M9 14 4 9l5-5"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+            <path
+              d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </button>
+        <button
+          class="icon-btn"
+          id="redo"
+          type="button"
+          aria-label="Redo"
+          title="Redo (Ctrl+Shift+Z)"
+          disabled
+        >
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+            <path
+              d="m15 14 5-5-5-5"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+            <path
+              d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </button>
       </nav>
 
       <div class="status" id="status" aria-live="polite">
         <p id="statusText"></p>
+        <span class="lit" id="lit">0 / 1 lit</span>
         <button class="next" id="next" type="button" hidden>
           Next level →
         </button>
@@ -186,6 +266,18 @@
         <h2 id="levelDialogTitle">Levels</h2>
         <button class="icon-btn" type="submit" aria-label="Close">✕</button>
       </form>
+      <section class="daily" id="dailyCard" aria-labelledby="dailyTitle">
+        <div class="daily-head">
+          <h2 id="dailyTitle">Today's level</h2>
+          <span class="rating medium" id="dailyDiff">Medium</span>
+        </div>
+        <p class="daily-date" id="dailyDate"></p>
+        <div class="daily-row">
+          <p class="daily-note" id="dailyNote"></p>
+          <button type="button" class="daily-play" id="dailyPlay">Play</button>
+        </div>
+      </section>
+
       <section class="endless" aria-labelledby="endlessTitle">
         <h2 id="endlessTitle">Endless</h2>
         <p>New levels, made on the spot. Each one has a code you can share.</p>

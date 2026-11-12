@@ -17,7 +17,7 @@ Play it at https://mival.github.io/prism-game/
 
 On touch screens, tap a piece to turn it and drag to move it. With a mouse, pointing at a placed piece shows buttons to turn it either way, flip a prism or take it back to the tray; with the keyboard, the arrow keys move a cursor over the board, Enter places or turns, R and Shift+R turn, F flips and Delete takes a piece back.
 
-There are 60 levels, each tagged Easy, Medium or Hard. The tag is stored with the level (`difficulty` in `src/js/logic.js`); it started from a score of pieces needed, decoys, receivers, mechanics and solver effort, then was adjusted by playing. From level 3 on, the tray also holds decoy pieces that no solution uses. A level counts as finished once its solution has stayed correct for a moment; the rings around the receivers fill up while that happens. Progress is saved in the browser.
+There are 60 levels in three chapters, Easy, Medium and Hard, played in that order; within each chapter they keep the order they were made in, so each mechanic is introduced by the level that teaches it. The tag is stored with the level (`difficulty` in `src/js/logic.js`); it started from a score of pieces needed, decoys, receivers, mechanics and solver effort, then was adjusted by playing. From level 3 on, the tray also holds decoy pieces that no solution uses. A level counts as finished once its solution has stayed correct for a moment; the rings around the receivers fill up while that happens. Progress is saved in the browser.
 
 `help.html` explains every item with an animated example.
 
@@ -31,9 +31,17 @@ The level list also offers Endless: Easy, Medium or Hard levels generated on the
 
 Each generated level has a code like `M-48213` (difficulty and seed). The same code always gives the same level, and a link ending in `#M-48213` opens it directly. Pages opened from `file://` can't start workers, so there the level is built on the page.
 
+### Today's level
+
+The Levels dialog starts with a daily level: its seed is a hash of the local date and its difficulty follows the weekday (Monday and Thursday easy, Tuesday and Friday medium, the rest hard). The builder runs in "exact" mode, returning the lowest valid seed from there even though several workers search in parallel, so every device builds the same level. Solving it on consecutive days builds a streak (`prism.daily`).
+
 ### Offline and installing
 
-Prism is a Progressive Web App. `sw.js` caches every file on the first visit, so the game, including Endless mode, works offline; Settings has an Install button where the browser offers one (and the steps for iPhone). The game's files are fetched network-first, so a new version reaches players as soon as they are online. The deploy workflow stamps each release: the pages carry their version in `<meta name="prism-version">` and `version.json` names the newest, so an open app shows a "new version" banner when they differ, and Settings › App has Check for updates. When adding a file the game loads, add it to `FILES` in `sw.js` and bump `VERSION`. `manifest.webmanifest` and `icons/` hold the app name and icons.
+Prism is a Progressive Web App. `sw.js` caches every file on the first visit, so the game, including Endless mode, works offline; Settings has an Install button where the browser offers one (and the steps for iPhone). The game's files are fetched network-first, so a new version reaches players as soon as they are online. The deploy workflow stamps each release: the pages carry their version in `<meta name="prism-version">` and `version.json` names the newest, so an open app shows a "new version" banner when they differ, and Settings › App has Check for updates. When adding a file the game loads, add it to `FILES` in `sw.js` and bump `VERSION`. `manifest.webmanifest` and `icons/` hold the app name and icons. `icons/og-image.png` is the 1200×630 picture shown when a link to the game is shared; the pages' Open Graph tags point to it by its full URL.
+
+### Languages
+
+The game is in English and Czech. `src/js/i18n.js` picks the language (Settings > Language: Auto follows the browser, Czech or Slovak choosing Czech) and holds the translations: strings built in JavaScript have an English and a Czech entry, and static English text in the pages is swapped for Czech by matching it, so the HTML stays plain English. Czech level names and hints live in `src/js/levels-cs.js`. To translate new text, add its Czech to `STATIC_CS` (static text) or `STRINGS.cs` (text built in code).
 
 ## Themes
 
@@ -51,9 +59,21 @@ To add a theme, copy the light block in `theme.css` under a new `:root[data-them
 - `settings.html` and `src/js/settings.js` are the settings page: theme, moving progress, restore and reset. `src/css/page.css` styles both pages.
 - `src/js/progress.js` holds the save-code format and reads and merges progress in the browser.
 - `src/js/sound.js` synthesizes the sound effects with the Web Audio API (no audio files): each light color has a note, so receivers chime as they light and a solved board resolves into a chord. Settings has the on/off switch and volume.
+- `src/js/i18n.js` and `src/js/levels-cs.js` hold the Czech translation.
 - `sw.js`, `src/js/pwa.js` and `manifest.webmanifest` make the game work offline and installable.
 - `src/vendor/qrcode.js` is [qrcode-generator](https://github.com/kazuhikoarase/qrcode-generator) 2.0.4 (MIT), used for the QR code.
 
-Every level stores one known solution, used by the hint button. Levels 14–60 were made by a generator that builds a level backwards from a random intended solution; a search over all piece placements then checked each one: unsolved at the start, solvable, needing every intended piece, and with decoy pieces that add no new solutions. Decoys are spare mirrors, prisms and splitters wherever one fits cleanly, since a spare filter is easy to rule out at a glance; Endless levels follow the same rule.
+Every level stores one known solution, used by the hint button. The first 13 levels made (First Light to Daybreak) were designed by hand; the rest were made by a generator that builds a level backwards from a random intended solution; a search over all piece placements then checked each one: unsolved at the start, solvable, needing every intended piece, and with decoy pieces that add no new solutions. Decoys are spare mirrors, prisms and splitters wherever one fits cleanly, since a spare filter is easy to rule out at a glance; Endless levels follow the same rule.
 
-The site is a static page; `.github/workflows/pages.yml` deploys it to GitHub Pages on every push to `main`.
+## Tests
+
+`tests/` holds the test suite: Node's built-in test runner for the rules, levels, save codes and generator, and Playwright (Chromium) for the game in a browser: every level solved by touch, undo, hints and statistics, restore links, today's level, Endless, offline play and installability, small screens, and the Czech translation (any English text left untranslated fails). Run it with:
+
+```
+npm ci
+npx playwright install chromium
+npm test
+npm run format:check
+```
+
+The site is a static page with no build step. `.github/workflows/pages.yml` runs the tests and the formatting check on every pull request and every push to `main`, and deploys to GitHub Pages only when they pass.
