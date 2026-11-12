@@ -186,10 +186,14 @@ h1 {
     display: none;
   }
 }
-.levelbar .lit {
+.status.win .lit {
+  display: none;
+}
+.status .lit {
   flex: 0 0 auto;
-  min-width: 6.5em;
-  text-align: right;
+  align-self: flex-start;
+  margin-top: 2px;
+  white-space: nowrap;
 }
 
 dialog#levelDialog {
@@ -264,6 +268,13 @@ dialog#levelDialog::backdrop {
   font-size: 11px;
   color: var(--muted);
   white-space: nowrap;
+}
+.level-cell .stats {
+  font-family: var(--sans);
+  font-size: 10px;
+  color: var(--muted);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 .level-cell .hints.none {
   color: var(--lit);

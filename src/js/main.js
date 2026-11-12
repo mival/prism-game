@@ -13,6 +13,8 @@
     levelName: $("levelName"),
     levelDiff: $("levelDiff"),
     lit: $("lit"),
+    undo: $("undo"),
+    redo: $("redo"),
     status: $("status"),
     statusText: $("statusText"),
     next: $("next"),
@@ -78,6 +80,16 @@
     endless: null,
     endlessSolved: load("prism.endless", { easy: 0, medium: 0, hard: 0 }),
     prefetch: null,
+    /* Undo and redo: board snapshots before each change. */
+    undo: [],
+    redo: [],
+    /* This attempt: moves made and active play time. */
+    moves: 0,
+    playMs: 0,
+    playFrom: null,
+    /* Best solve per campaign level: { id: { moves, ms } }. */
+    bestStats: load("prism.stats", {}),
+    lastSolve: null,
     busy: false,
     S: 1,
     baseDirty: true,
@@ -121,6 +133,12 @@
 
   function startLevel(lv) {
     state.prevLit = null;
+    state.undo = [];
+    state.redo = [];
+    state.moves = 0;
+    state.playMs = 0;
+    state.playFrom = document.hidden ? null : performance.now();
+    state.lastSolve = null;
     Sound.holdStop();
     state.pieces = L.fixedPieces(lv);
     state.inv = { ...lv.tray };
@@ -128,6 +146,7 @@
     state.drag = null;
     hideTools();
     update();
+    renderUndo();
   }
 
   function loadLevel(i) {
@@ -451,6 +470,9 @@
     const lv = level();
     Sound.solved();
     state.confirmed = true;
+    pauseClock();
+    recordSolve(lv);
+    renderUndo();
     state.holdSince = null;
     el.lit.classList.add("all");
     if (state.endless) {
@@ -477,25 +499,132 @@
     renderLevels();
   }
 
-  function place(trayId, x, y) {
-    const p = L.pieceFromTrayId(trayId, x, y);
-    p.trayId = trayId;
-    state.pieces.push(p);
-    state.inv[trayId]--;
-    Sound.place();
-    if (state.inv[trayId] <= 0) state.armed = null;
+  /* ------------------------------ undo ------------------------------ */
+
+  /* The board as text: enough to put it back exactly. */
+  function snapshot() {
+    // Fixed pieces keep their order (hints rely on it); the rest are sorted
+    // by tile, so dragging a piece back to its own tile is no change.
+    const fixed = state.pieces.filter((p) => p.fixed);
+    const placed = state.pieces
+      .filter((p) => !p.fixed)
+      .sort((a, b) => a.y - b.y || a.x - b.x);
+    return JSON.stringify({
+      pieces: fixed.concat(placed).map((p) => ({
+        type: p.type,
+        x: p.x,
+        y: p.y,
+        k: p.k,
+        color: p.color,
+        trayId: p.trayId,
+        fixed: p.fixed,
+        hinted: p.hinted,
+      })),
+      inv: state.inv,
+    });
+  }
+  function restoreSnapshot(snap) {
+    const s = JSON.parse(snap);
+    state.pieces = s.pieces.map((p) => {
+      const q = { ...p };
+      for (const k of Object.keys(q)) if (q[k] === undefined) delete q[k];
+      return q;
+    });
+    state.inv = s.inv;
+    state.armed = null;
+    hideTools();
     update();
+  }
+  /* Records `before` as an undo step if the board really changed (moving a
+     piece back where it was is not a step). Player moves count as moves;
+     hints don't. */
+  function commit(before, move) {
+    if (snapshot() === before) return;
+    state.undo.push(before);
+    if (state.undo.length > 300) state.undo.shift();
+    state.redo = [];
+    if (move) state.moves++;
+    renderUndo();
+  }
+  function act(fn, move = true) {
+    const before = snapshot();
+    fn();
+    commit(before, move);
+  }
+  function undo() {
+    if (!state.undo.length || state.confirmed || state.busy || state.drag)
+      return;
+    state.redo.push(snapshot());
+    restoreSnapshot(state.undo.pop());
+    Sound.pickup();
+    renderUndo();
+  }
+  function redo() {
+    if (!state.redo.length || state.confirmed || state.busy || state.drag)
+      return;
+    state.undo.push(snapshot());
+    restoreSnapshot(state.redo.pop());
+    Sound.pickup();
+    renderUndo();
+  }
+  function renderUndo() {
+    el.undo.disabled = !state.undo.length || state.confirmed;
+    el.redo.disabled = !state.redo.length || state.confirmed;
+  }
+  el.undo.addEventListener("click", undo);
+  el.redo.addEventListener("click", redo);
+  window.addEventListener("keydown", (e) => {
+    if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+    const t = e.target;
+    if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA")) return;
+    const k = e.key.toLowerCase();
+    if (k === "z" && !e.shiftKey) undo();
+    else if ((k === "z" && e.shiftKey) || k === "y") redo();
+    else return;
+    e.preventDefault();
+  });
+
+  /* ------------------------------ moves and time ------------------------------ */
+
+  /* Play time only runs while the page is visible and the level unsolved. */
+  function pauseClock() {
+    if (state.playFrom === null) return;
+    state.playMs += performance.now() - state.playFrom;
+    state.playFrom = null;
+  }
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) pauseClock();
+    else if (!state.confirmed && state.playFrom === null)
+      state.playFrom = performance.now();
+  });
+  const clock = (ms) => {
+    const s = Math.round(ms / 1000);
+    return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+  };
+  const movesText = (n) => `${n} move${n === 1 ? "" : "s"}`;
+
+  function place(trayId, x, y) {
+    act(() => {
+      const p = L.pieceFromTrayId(trayId, x, y);
+      p.trayId = trayId;
+      state.pieces.push(p);
+      state.inv[trayId]--;
+      Sound.place();
+      if (state.inv[trayId] <= 0) state.armed = null;
+      update();
+    });
   }
 
   /* Turns a piece by `by` steps (negative turns it back). */
   function rotate(p, by = 1) {
     const states = L.PIECES[p.type].states;
-    if (states > 1 && !p.hinted) {
-      if (states === 2) Sound.flip();
-      else Sound.rotate();
-      p.k = (((p.k + by) % states) + states) % states;
-      update();
-    }
+    if (states > 1 && !p.hinted)
+      act(() => {
+        if (states === 2) Sound.flip();
+        else Sound.rotate();
+        p.k = (((p.k + by) % states) + states) % states;
+        update();
+      });
   }
 
   const movable = (p) => !p.fixed && !p.hinted;
@@ -503,10 +632,12 @@
   /* Takes a placed piece back to the tray. */
   function takeBack(p) {
     if (!movable(p)) return;
-    state.pieces = state.pieces.filter((q) => q !== p);
-    state.inv[p.trayId]++;
-    Sound.remove();
-    update();
+    act(() => {
+      state.pieces = state.pieces.filter((q) => q !== p);
+      state.inv[p.trayId]++;
+      Sound.remove();
+      update();
+    });
   }
 
   /* ------------------------------ hints ------------------------------ */
@@ -518,6 +649,9 @@
      in place, further hints take extra pieces back to the tray. */
   function giveHint() {
     if (state.confirmed) return;
+    act(giveHintNow, false);
+  }
+  function giveHintNow() {
     if (!state.endless) {
       state.attempt.hints++;
       save("prism.attempt", state.attempt);
@@ -584,6 +718,27 @@
 
   /* ------------------------------ UI chrome ------------------------------ */
 
+  /* Moves and time for this solve; the best of each is kept per level. */
+  function recordSolve(lv) {
+    const moves = state.moves;
+    const ms = state.playMs;
+    let best = false;
+    if (!state.endless) {
+      const prev = state.bestStats[lv.id];
+      best = !!prev && (moves < prev.moves || ms < prev.ms);
+      state.bestStats[lv.id] = prev
+        ? { moves: Math.min(prev.moves, moves), ms: Math.min(prev.ms, ms) }
+        : { moves, ms };
+      save("prism.stats", state.bestStats);
+    }
+    state.lastSolve = { moves, ms, best };
+  }
+  function solveText() {
+    const s = state.lastSolve;
+    if (!s) return "";
+    return ` ${movesText(s.moves)} · ${clock(s.ms)}${s.best ? " · new best!" : ""}`;
+  }
+
   function renderStatus() {
     const last = !state.endless && state.level === L.LEVELS.length - 1;
     const won = state.confirmed;
@@ -593,9 +748,8 @@
     el.status.classList.toggle("win", won);
     el.status.classList.toggle("warn", !won && burning);
     el.statusText.textContent = won
-      ? last
-        ? "Level complete. That was the last one."
-        : "Level complete."
+      ? (last ? "Level complete. That was the last one." : "Level complete.") +
+        solveText()
       : holding
         ? "All receivers lit. Keep it like this to finish the level."
         : burning && res.lit.every(Boolean)
@@ -674,6 +828,13 @@
         h.className = "hints" + (hints === 0 ? " none" : "");
         h.textContent = hints === 0 ? "no hints" : `💡 ${hintText}`;
         b.append(h);
+      }
+      const best = solved && state.bestStats[lv.id];
+      if (best) {
+        const st = document.createElement("span");
+        st.className = "stats";
+        st.textContent = `${movesText(best.moves)} · ${clock(best.ms)}`;
+        b.append(st);
       }
       b.addEventListener("click", () => {
         el.dialog.close();
@@ -855,6 +1016,7 @@
       (d.kind === "tray" || movable(d.piece))
     ) {
       d.active = true;
+      d.before = snapshot();
       Sound.pickup();
       state.armed = null;
       hideTools();
@@ -910,6 +1072,7 @@
       state.pieces.push(p);
     }
     update();
+    commit(d.before, true);
   }
 
   window.addEventListener("pointerup", (e) => endDrag(e, false));

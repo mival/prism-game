@@ -356,6 +356,7 @@
     write("prism.endless", { easy: 0, medium: 0, hard: 0 });
     write("prism.level", 0);
     write("prism.hints", {});
+    write("prism.stats", {});
     write("prism.attempt", { id: null, hints: 0 });
   }
 
