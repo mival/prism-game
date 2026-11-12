@@ -223,7 +223,7 @@ dialog#levelDialog::backdrop {
 }
 .level-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(78px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   gap: 6px;
 }
 .chapter {
@@ -257,15 +257,32 @@ dialog#levelDialog::backdrop {
 }
 .level-cell {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 2px;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
   min-width: 0;
   padding: 8px;
   border-radius: var(--radius-sm);
   border: 1px solid var(--line);
   background: var(--chip);
   text-align: left;
+}
+.level-cell .info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+/* The level's preview: 7 by 9 tiles. */
+.level-cell .thumb {
+  flex: none;
+  width: 42px;
+  height: 54px;
+  border-radius: 6px;
+  background: var(--board);
+  box-shadow: 0 0 0 1px var(--line);
 }
 .level-cell .head {
   display: flex;

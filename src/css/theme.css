@@ -39,6 +39,11 @@
   --board: #0f1318;
   --board-dot: #26303b;
   --cell-hint: rgba(147, 163, 184, 0.22);
+  --cell-path: rgba(147, 163, 184, 0.17);
+  /* A faint wash over the board per chapter: cool to warm. */
+  --tint-easy: rgba(61, 123, 255, 0.035);
+  --tint-medium: rgba(0, 0, 0, 0);
+  --tint-hard: rgba(255, 120, 60, 0.04);
   --target-ok: rgba(200, 220, 255, 0.75);
   --target-bad: rgba(255, 90, 90, 0.6);
   --wall: #1b2129;
@@ -104,6 +109,10 @@
     --board: #f8fafc;
     --board-dot: #c9d1dc;
     --cell-hint: rgba(70, 86, 110, 0.28);
+    --cell-path: rgba(70, 86, 110, 0.14);
+    --tint-easy: rgba(61, 123, 255, 0.035);
+    --tint-medium: rgba(0, 0, 0, 0);
+    --tint-hard: rgba(255, 130, 40, 0.045);
     --target-ok: rgba(40, 60, 90, 0.7);
     --target-bad: rgba(201, 40, 58, 0.6);
     --wall: #dde3eb;
@@ -166,6 +175,10 @@
   --board: #f8fafc;
   --board-dot: #c9d1dc;
   --cell-hint: rgba(70, 86, 110, 0.28);
+  --cell-path: rgba(70, 86, 110, 0.14);
+  --tint-easy: rgba(61, 123, 255, 0.035);
+  --tint-medium: rgba(0, 0, 0, 0);
+  --tint-hard: rgba(255, 130, 40, 0.045);
   --target-ok: rgba(40, 60, 90, 0.7);
   --target-bad: rgba(201, 40, 58, 0.6);
   --wall: #dde3eb;

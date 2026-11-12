@@ -20,6 +20,10 @@
     "board",
     "board-dot",
     "cell-hint",
+    "cell-path",
+    "tint-easy",
+    "tint-medium",
+    "tint-hard",
     "target-ok",
     "target-bad",
     "wall",
@@ -79,9 +83,13 @@
   }
 
   const Draw = {
-    board(ctx, S, cols, rows) {
+    board(ctx, S, cols, rows, tint) {
       ctx.fillStyle = T.board;
       ctx.fillRect(0, 0, cols * S, rows * S);
+      if (tint) {
+        ctx.fillStyle = tint;
+        ctx.fillRect(0, 0, cols * S, rows * S);
+      }
       ctx.fillStyle = T.boardDot;
       const d = Math.max(1, S * 0.045);
       for (let i = 1; i < cols; i++)
@@ -94,6 +102,13 @@
       ctx.strokeStyle = T.cellHint;
       ctx.lineWidth = Math.max(1, S * 0.02);
       ctx.stroke();
+    },
+
+    /* A free tile the light crosses: where a piece can change something. */
+    pathCell(ctx, x, y, S) {
+      rr(ctx, x * S + S * 0.12, y * S + S * 0.12, S * 0.76, S * 0.76, S * 0.14);
+      ctx.fillStyle = T.cellPath;
+      ctx.fill();
     },
 
     target(ctx, x, y, S, ok) {
@@ -272,7 +287,8 @@
     prism(ctx, cx, cy, k, S) {
       ctx.save();
       ctx.translate(cx, cy);
-      if (k === 1) ctx.rotate(Math.PI);
+      // k is 0 or 1 (flipped); in between while it animates.
+      if (k) ctx.rotate(Math.PI * k);
       const p = [
         [0, -S * 0.36],
         [-S * 0.35, S * 0.26],
@@ -555,7 +571,9 @@
 
     function base(ctx, level, pieces, S, hidden) {
       const [cols, rows] = L.sizeOf(level);
-      Draw.board(ctx, S, cols, rows);
+      const d = level.difficulty;
+      const tint = d ? T["tint" + d[0].toUpperCase() + d.slice(1)] : null;
+      Draw.board(ctx, S, cols, rows, tint);
       level.walls.forEach(([x, y]) => Draw.wall(ctx, x, y, S));
       (level.doors || []).forEach(([x, y, c]) => Draw.door(ctx, x, y, c, S));
       (level.sensors || []).forEach(([x, y]) => Draw.sensor(ctx, x, y, S));
@@ -570,27 +588,54 @@
         Draw.receiver(ctx, center(r.x, S), center(r.y, S), r.c, S),
       );
       pieces.forEach((p) => {
-        if (p !== hidden) Draw.piece(ctx, p, center(p.x, S), center(p.y, S), S);
+        if (p !== hidden)
+          Draw.piece(
+            ctx,
+            p,
+            center(p.x, S),
+            center(p.y, S),
+            S * (p.scale || 1),
+          );
       });
     }
 
-    function light(ctx, level, result, S, t, phase) {
-      const runs = result.runs.map((r) => {
+    /* `phase` null leaves out the arrows (for small previews). `reveal`
+       draws light travelling: { fresh: Set of new runs, at: distance the
+       new light has reached, arrival: Map "x,y" -> distance new light
+       arrives at a receiver or sensor }. */
+    function light(ctx, level, result, S, t, phase, reveal) {
+      const runs = [];
+      for (const r of result.runs) {
         const [ox, oy] = laneOffset(r, result.runs);
-        return [
-          center(r.x0 + ox, S),
-          center(r.y0 + oy, S),
-          center(r.x1 + ox, S),
-          center(r.y1 + oy, S),
+        let f = 1;
+        if (reveal && reveal.fresh.has(r))
+          f =
+            r.len > 0
+              ? Math.max(0, Math.min(1, (reveal.at - r.dist) / r.len))
+              : 1;
+        if (f <= 0) continue;
+        const x0 = r.x0 + ox,
+          y0 = r.y0 + oy;
+        runs.push([
+          center(x0, S),
+          center(y0, S),
+          center(x0 + (r.x1 - r.x0) * f, S),
+          center(y0 + (r.y1 - r.y0) * f, S),
           r.c,
-        ];
-      });
+        ]);
+      }
+      // Receivers and sensors wait until new light reaches them.
+      const waiting = (x, y) =>
+        reveal &&
+        reveal.arrival.has(x + "," + y) &&
+        reveal.at < reveal.arrival.get(x + "," + y);
       runs.forEach(([x0, y0, x1, y1, c]) =>
         Draw.beam(ctx, x0, y0, x1, y1, c, S),
       );
-      runs.forEach(([x0, y0, x1, y1, c]) =>
-        Draw.arrows(ctx, x0, y0, x1, y1, c, S, phase),
-      );
+      if (phase !== null)
+        runs.forEach(([x0, y0, x1, y1, c]) =>
+          Draw.arrows(ctx, x0, y0, x1, y1, c, S, phase),
+        );
       (level.portals || []).forEach(([ax, ay, bx, by], i) => {
         Draw.portalLight(ctx, ax, ay, i, S, t);
         Draw.portalLight(ctx, bx, by, i, S, t);
@@ -599,7 +644,14 @@
         Draw.sourceLight(ctx, center(s.x, S), center(s.y, S), s.d, s.c, S),
       );
       (level.sensors || []).forEach(([x, y], i) =>
-        Draw.sensorLight(ctx, x, y, result.sensorHits[i], S, t),
+        Draw.sensorLight(
+          ctx,
+          x,
+          y,
+          waiting(x, y) ? 0 : result.sensorHits[i],
+          S,
+          t,
+        ),
       );
       level.receivers.forEach((r, i) =>
         Draw.receiverLight(
@@ -607,8 +659,8 @@
           center(r.x, S),
           center(r.y, S),
           r.c,
-          result.hits[i],
-          result.lit[i],
+          waiting(r.x, r.y) ? 0 : result.hits[i],
+          waiting(r.x, r.y) ? false : result.lit[i],
           S,
           t,
         ),
@@ -815,7 +867,8 @@
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     }
 
-    render(base, light, baseDirty) {
+    /* `boost` scales the bloom, e.g. for a pulse when a level is solved. */
+    render(base, light, baseDirty, boost = 1) {
       const W = this.canvas.width,
         H = this.canvas.height;
       if (!this.gl) {
@@ -857,7 +910,10 @@
       gl.uniform1i(gl.getUniformLocation(p, "base"), 0);
       gl.uniform1i(gl.getUniformLocation(p, "light"), 1);
       gl.uniform1i(gl.getUniformLocation(p, "bloom"), 2);
-      gl.uniform1f(gl.getUniformLocation(p, "strength"), T.bloomStrength);
+      gl.uniform1f(
+        gl.getUniformLocation(p, "strength"),
+        T.bloomStrength * boost,
+      );
       gl.uniform1f(gl.getUniformLocation(p, "additive"), T.additive ? 1 : 0);
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     }

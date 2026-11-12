@@ -222,3 +222,36 @@ test("no horizontal scrolling on a small phone", async () => {
   }
   await ctx.close();
 });
+
+test("light travels after a change, and stays instant with reduce motion", async () => {
+  for (const reducedMotion of ["no-preference", "reduce"]) {
+    const { ctx, page, errors } = await phone({ reducedMotion });
+    await page.evaluate(() => window.__prism.loadLevel(1));
+    const reveal = await page.evaluate(() => {
+      const r = window.__prism.state.reveal;
+      return r && { start: r.start, end: r.end, fresh: r.fresh.size };
+    });
+    if (reducedMotion === "reduce") assert.equal(reveal, null);
+    else {
+      assert.ok(reveal && reveal.end > reveal.start && reveal.fresh > 0);
+      // And it finishes within half a second.
+      await page.waitForFunction(
+        () => window.__prism.state.reveal === null,
+        null,
+        {
+          timeout: 1500,
+        },
+      );
+    }
+    await page.tap("#levelsBtn");
+    assert.equal(
+      await page.evaluate(
+        () => document.querySelectorAll(".level-cell canvas.thumb").length,
+      ),
+      await page.evaluate(() => window.__prism.L.LEVELS.length),
+      "a preview on every tile",
+    );
+    assert.deepEqual(errors, []);
+    await ctx.close();
+  }
+});
