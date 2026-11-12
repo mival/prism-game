@@ -175,7 +175,7 @@
     el.fwd.setAttribute("aria-label", "Next level");
     el.prev.title = "Previous level";
     el.fwd.title = "Next level";
-    save("prism.level", i);
+    save("prism.levelId", L.LEVELS[i].id);
     if (location.hash) history.replaceState(null, "", location.pathname);
     startLevel(level());
   }
@@ -784,7 +784,8 @@
     if (!p) return ["That restore link is damaged.", false];
     const r = Progress.mergeLocal(p);
     reloadProgress();
-    if (!state.endless && p.level < L.LEVELS.length) loadLevel(p.level);
+    const at = L.LEVELS.findIndex((lv) => lv.id === Progress.SAVE_IDS[p.level]);
+    if (!state.endless && at >= 0) loadLevel(at);
     return [Progress.describeRestore(r), true];
   }
 
@@ -792,6 +793,15 @@
     el.doneCount.textContent = `${state.done.size}/${L.LEVELS.length} done`;
     el.grid.textContent = "";
     L.LEVELS.forEach((lv, i) => {
+      // Levels run easy to hard; each difficulty starts a chapter.
+      if (i === 0 || L.LEVELS[i - 1].difficulty !== lv.difficulty) {
+        const all = L.LEVELS.filter((l) => l.difficulty === lv.difficulty);
+        const solved = all.filter((l) => state.done.has(l.id)).length;
+        const h = document.createElement("h3");
+        h.className = "chapter " + lv.difficulty;
+        h.innerHTML = `<span>${DIFF_LABEL[lv.difficulty]}</span><span class="count">${solved} / ${all.length}</span>`;
+        el.grid.appendChild(h);
+      }
       const b = document.createElement("button");
       b.type = "button";
       const solved = state.done.has(lv.id);
@@ -1404,7 +1414,9 @@
 
   readTheme();
   new ResizeObserver(layout).observe(el.stage);
-  const savedLevel = Number(load("prism.level", 0));
+  const savedLevel = L.LEVELS.findIndex(
+    (lv) => lv.id === Progress.currentLevelId(),
+  );
   const sharedCode = /^#([EMH]-\d{1,9})$/i.exec(location.hash);
   const restoreCode = /^#restore-([0-9A-Za-z]+)$/.exec(location.hash);
   loadLevel(savedLevel >= 0 && savedLevel < L.LEVELS.length ? savedLevel : 0);
