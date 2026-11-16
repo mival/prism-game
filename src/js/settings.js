@@ -21,6 +21,22 @@
 
   /* ------------------------------ theme ------------------------------ */
 
+  /* Color letters: read by the renderer (prism.letters). */
+  const letters = $("letters");
+  try {
+    letters.checked = localStorage.getItem("prism.letters") === "1";
+  } catch (e) {
+    /* off */
+  }
+  letters.addEventListener("change", () => {
+    try {
+      if (letters.checked) localStorage.setItem("prism.letters", "1");
+      else localStorage.removeItem("prism.letters");
+    } catch (e) {
+      /* won't persist */
+    }
+  });
+
   const themeInputs = [...document.querySelectorAll('input[name="theme"]')];
   const current = document.documentElement.dataset.theme || "auto";
   themeInputs.forEach((i) => {

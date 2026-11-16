@@ -18,6 +18,7 @@
     dailyDiff: $("dailyDiff"),
     dailyPlay: $("dailyPlay"),
     dailyNote: $("dailyNote"),
+    dailyShare: $("dailyShare"),
     undo: $("undo"),
     redo: $("redo"),
     status: $("status"),
@@ -100,6 +101,10 @@
     /* Best solve per campaign level: { id: { moves, ms } }. */
     bestStats: load("prism.stats", {}),
     lastSolve: null,
+    /* Hints used on the current Endless or daily level. */
+    sessionHints: 0,
+    /* Tile marked by the first tap of a hint. */
+    hintAt: null,
     busy: false,
     S: 1,
     baseDirty: true,
@@ -522,11 +527,15 @@
     state.daily.last === dayKey() || state.daily.last === yesterdayKey()
       ? state.daily.streak
       : 0;
+  /* The first solve of the day counts: its moves, time and hints are kept
+     for sharing. */
   function recordDaily(key) {
     if (state.daily.last === key) return;
+    const s = state.lastSolve || { moves: 0, ms: 0 };
     state.daily = {
       last: key,
       streak: state.daily.last === yesterdayKey() ? state.daily.streak + 1 : 1,
+      result: { moves: s.moves, ms: s.ms, hints: state.sessionHints },
     };
     save("prism.daily", state.daily);
   }
@@ -549,7 +558,52 @@
         ? t("dailyStreak", { streak })
         : t("dailyFresh");
     el.dailyCard.classList.toggle("done", solved);
+    el.dailyShare.hidden = !(solved && state.daily.result);
+    el.dailyShare.textContent = t("share");
   }
+
+  /* Today's result as a few lines of text with a link to today's level. */
+  function dailyShareText() {
+    const r = state.daily.result;
+    const streak = currentStreak();
+    return t("shareText", {
+      date: new Date().toLocaleDateString(I18n.locale, {
+        day: "numeric",
+        month: "short",
+      }),
+      hints: r.hints
+        ? "💡 " + t("hints", { n: r.hints })
+        : "⭐ " + t("noHints"),
+      moves: movesText(r.moves),
+      time: clock(r.ms),
+      streak,
+      url: new URL("./#daily", location.href).href,
+    });
+  }
+  async function shareDaily(button) {
+    if (!state.daily.result) return;
+    const text = dailyShareText();
+    if (navigator.share) {
+      try {
+        await navigator.share({ text });
+        return;
+      } catch (e) {
+        if (e && e.name === "AbortError") return;
+      }
+    }
+    const label = button.textContent;
+    const flash = (msg) => {
+      button.textContent = msg;
+      setTimeout(() => (button.textContent = label), 1500);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText)
+      navigator.clipboard.writeText(text).then(
+        () => flash(t("copied")),
+        () => flash(t("couldntCopy")),
+      );
+    else flash(t("couldntCopy"));
+  }
+  el.dailyShare.addEventListener("click", () => shareDaily(el.dailyShare));
   el.dailyPlay.addEventListener("click", () => playEndless(null, null, true));
 
   async function playEndless(difficulty, code, daily = false) {
@@ -608,6 +662,7 @@
       if (code) showCodeError(true);
       return;
     }
+    state.sessionHints = 0;
     state.endless = {
       difficulty: lv.difficulty,
       level: lv,
@@ -673,6 +728,7 @@
   /* Call after every change the player (or a hint) makes. */
   function update() {
     const lv = level();
+    state.hintAt = null;
     state.result = L.trace(lv, state.pieces);
     state.reveal = makeReveal(state.prevResult, state.result, lv);
     state.prevResult = state.result;
@@ -909,69 +965,100 @@
      spot (clearing the tile first and taking the piece off the board if the
      tray has none left), and locks that piece. Once every solution piece is
      in place, further hints take extra pieces back to the tray. */
-  function giveHint() {
-    if (state.confirmed) return;
-    act(giveHintNow, false);
-  }
-  function giveHintNow() {
-    if (!state.endless) {
-      state.attempt.hints++;
-      save("prism.attempt", state.attempt);
-    }
-    Sound.hint();
+  /* The next thing a hint would do: where, and how to do it. */
+  function hintStep() {
     const lv = level();
     const sol = lv.solution;
     const fixed = state.pieces.filter((p) => p.fixed);
-    for (let i = 0; i < fixed.length; i++) {
-      if (fixed[i].k !== sol.fixed[i]) {
-        fixed[i].k = sol.fixed[i];
-        fixed[i].hinted = true;
-        return update();
-      }
-    }
+    for (let i = 0; i < fixed.length; i++)
+      if (fixed[i].k !== sol.fixed[i])
+        return {
+          x: fixed[i].x,
+          y: fixed[i].y,
+          apply() {
+            fixed[i].k = sol.fixed[i];
+            fixed[i].hinted = true;
+          },
+        };
     for (const s of sol.placed) {
       const here = state.pieces.find((p) => p.x === s.x && p.y === s.y);
       if (here && here.trayId === s.id && here.k === s.k) {
-        if (!here.hinted) {
-          here.hinted = true;
-          return update();
-        }
+        if (!here.hinted)
+          return { x: s.x, y: s.y, apply: () => (here.hinted = true) };
         continue;
       }
-      if (here) {
-        state.pieces = state.pieces.filter((p) => p !== here);
-        state.inv[here.trayId]++;
-      }
-      if (state.inv[s.id] <= 0) {
-        const spare = state.pieces.find(
-          (p) =>
-            p.trayId === s.id &&
-            !p.hinted &&
-            !sol.placed.some(
-              (o) =>
-                o.x === p.x && o.y === p.y && o.id === p.trayId && o.k === p.k,
-            ),
-        );
-        if (spare) {
-          state.pieces = state.pieces.filter((p) => p !== spare);
-          state.inv[s.id]++;
-        }
-      }
-      const p = L.pieceFromTrayId(s.id, s.x, s.y);
-      p.trayId = s.id;
-      p.k = s.k;
-      p.hinted = true;
-      state.pieces.push(p);
-      state.inv[s.id]--;
-      state.armed = null;
-      return update();
+      return {
+        x: s.x,
+        y: s.y,
+        apply() {
+          if (here) {
+            state.pieces = state.pieces.filter((p) => p !== here);
+            state.inv[here.trayId]++;
+          }
+          if (state.inv[s.id] <= 0) {
+            const spare = state.pieces.find(
+              (p) =>
+                p.trayId === s.id &&
+                !p.hinted &&
+                !sol.placed.some(
+                  (o) =>
+                    o.x === p.x &&
+                    o.y === p.y &&
+                    o.id === p.trayId &&
+                    o.k === p.k,
+                ),
+            );
+            if (spare) {
+              state.pieces = state.pieces.filter((p) => p !== spare);
+              state.inv[s.id]++;
+            }
+          }
+          const p = L.pieceFromTrayId(s.id, s.x, s.y);
+          p.trayId = s.id;
+          p.k = s.k;
+          p.hinted = true;
+          state.pieces.push(p);
+          state.inv[s.id]--;
+          state.armed = null;
+        },
+      };
     }
     const extra = state.pieces.find((p) => !p.fixed && !p.hinted);
-    if (extra) {
-      state.pieces = state.pieces.filter((p) => p !== extra);
-      state.inv[extra.trayId]++;
-      update();
+    if (extra)
+      return {
+        x: extra.x,
+        y: extra.y,
+        apply() {
+          state.pieces = state.pieces.filter((p) => p !== extra);
+          state.inv[extra.trayId]++;
+        },
+      };
+    return null;
+  }
+
+  /* A hint comes in two taps: the first only marks the tile (often enough
+     to get going again), the second does the move. Together they count as
+     one hint. Any change to the board clears the mark. */
+  function giveHint() {
+    if (state.confirmed) return;
+    const step = hintStep();
+    if (!step) return;
+    Sound.hint();
+    const key = step.x + "," + step.y;
+    if (state.hintAt && state.hintAt.key === key) {
+      act(() => {
+        step.apply();
+        update();
+      }, false);
+      return;
     }
+    if (state.endless) state.sessionHints++;
+    else {
+      state.attempt.hints++;
+      save("prism.attempt", state.attempt);
+    }
+    state.hintAt = { x: step.x, y: step.y, key };
+    renderStatus();
   }
 
   el.hint.addEventListener("click", () => {
@@ -1013,13 +1100,20 @@
       ? (last ? t("completeLast") : t("complete")) + solveText()
       : holding
         ? t("holding")
-        : burning && res.lit.every(Boolean)
-          ? t("burning")
-          : state.stuck
-            ? t("stuck")
-            : levelHint(level());
+        : state.hintAt
+          ? t("hintShown")
+          : burning && res.lit.every(Boolean)
+            ? t("burning")
+            : state.stuck
+              ? t("stuck")
+              : levelHint(level());
     el.next.hidden = !won || last;
-    el.next.textContent = state.endless ? t("newLevelBtn") : t("nextLevelBtn");
+    const sharing = state.endless && state.endless.daily && state.daily.result;
+    el.next.textContent = sharing
+      ? t("share")
+      : state.endless
+        ? t("newLevelBtn")
+        : t("nextLevelBtn");
     el.hint.disabled = won;
   }
 
@@ -1655,11 +1749,12 @@
     if (state.endless) startLevel(state.endless.level);
     else loadLevel(state.level);
   });
-  el.next.addEventListener("click", () =>
-    state.endless
-      ? playEndless(state.endless.difficulty)
-      : loadLevel(Math.min(state.level + 1, L.LEVELS.length - 1)),
-  );
+  el.next.addEventListener("click", () => {
+    if (state.endless && state.endless.daily && state.daily.result)
+      shareDaily(el.next);
+    else if (state.endless) playEndless(state.endless.difficulty);
+    else loadLevel(Math.min(state.level + 1, L.LEVELS.length - 1));
+  });
 
   /* ------------------------------ drawing ------------------------------ */
 
@@ -1752,6 +1847,23 @@
           S,
         ),
       );
+    // First hint tap: a pulsing mark on the tile to look at.
+    if (state.hintAt) {
+      const pulse = reduceMotion ? 0.5 : 0.5 + 0.5 * Math.sin(t / 220);
+      ctx.strokeStyle = theme.hint;
+      ctx.lineWidth = S * 0.06;
+      ctx.globalAlpha = 0.55 + 0.45 * pulse;
+      ctx.beginPath();
+      ctx.arc(
+        center(state.hintAt.x, S),
+        center(state.hintAt.y, S),
+        S * (0.44 + 0.04 * pulse),
+        0,
+        Math.PI * 2,
+      );
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
     // Solved: each receiver sends out a ring in its own colour.
     const e = state.solvedAt === null ? 1 : (t - state.solvedAt) / BURST_MS;
     if (e < 1 && !reduceMotion)
@@ -1812,9 +1924,12 @@
     (lv) => lv.id === Progress.currentLevelId(),
   );
   const sharedCode = /^#([EMH]-\d{1,9})$/i.exec(location.hash);
+  const dailyLink = location.hash === "#daily";
   const restoreCode = /^#restore-([0-9A-Za-z]+)$/.exec(location.hash);
   loadLevel(savedLevel >= 0 && savedLevel < L.LEVELS.length ? savedLevel : 0);
   if (sharedCode) playEndless(null, sharedCode[1].toUpperCase());
+  // A shared daily result links here: open today's level.
+  if (dailyLink) playEndless(null, null, true);
   if (restoreCode) {
     const [text, ok] = restore(restoreCode[1]);
     el.statusText.textContent = ok

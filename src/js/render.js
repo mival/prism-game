@@ -73,6 +73,15 @@
       ([m, v]) => (COLORS[m] = cs.getPropertyValue(v).trim()),
     );
     T.additive = T.beamBlend !== "over";
+    // Color letters (Settings): a letter beside every colored thing, so
+    // color is never the only clue. null when off.
+    let on = false;
+    try {
+      on = localStorage.getItem("prism.letters") === "1";
+    } catch (e) {
+      /* off */
+    }
+    T.letters = on && root.PrismI18n ? root.PrismI18n.letters : null;
     return T;
   }
 
@@ -332,6 +341,43 @@
       ctx.stroke();
     },
 
+    /* The color's letter in a small badge at the tile's top right corner.
+       Skipped on tiny drawings such as the level previews. */
+    badge(ctx, cx, cy, c, S) {
+      if (!T.letters || S < 20) return;
+      const x = cx + S * 0.31,
+        y = cy - S * 0.31,
+        r = S * 0.17;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fillStyle = T.board;
+      ctx.fill();
+      ctx.strokeStyle = COLORS[c];
+      ctx.lineWidth = Math.max(1, S * 0.025);
+      ctx.stroke();
+      ctx.fillStyle = COLORS[c];
+      ctx.font = `700 ${Math.round(S * 0.24)}px "IBM Plex Mono", monospace`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(T.letters[c], x, y + S * 0.012);
+    },
+
+    /* The color's letter beside the middle of a beam. */
+    beamLetter(ctx, x0, y0, x1, y1, c, S) {
+      if (!T.letters || S < 20) return;
+      const len = Math.hypot(x1 - x0, y1 - y0);
+      if (len < S * 1.4) return;
+      const ux = (x1 - x0) / len,
+        uy = (y1 - y0) / len;
+      const x = (x0 + x1) / 2 + uy * S * 0.24,
+        y = (y0 + y1) / 2 - ux * S * 0.24;
+      ctx.fillStyle = COLORS[c];
+      ctx.font = `700 ${Math.round(S * 0.24)}px "IBM Plex Mono", monospace`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(T.letters[c], x, y);
+    },
+
     /* Dark sensor: must not receive any light. */
     sensor(ctx, x, y, S) {
       const cx = (x + 0.5) * S,
@@ -473,7 +519,10 @@
       if (p.type === "mirror") Draw.mirror(ctx, cx, cy, p.k, S);
       else if (p.type === "splitter") Draw.splitter(ctx, cx, cy, p.k, S);
       else if (p.type === "prism") Draw.prism(ctx, cx, cy, p.k, S);
-      else if (p.type === "filter") Draw.filter(ctx, cx, cy, p.color, S);
+      else if (p.type === "filter") {
+        Draw.filter(ctx, cx, cy, p.color, S);
+        Draw.badge(ctx, cx, cy, p.color, S);
+      }
       if (p.fixed) Draw.bolts(ctx, cx, cy, S);
       if (p.hinted) Draw.hintMark(ctx, cx, cy, S);
     },
@@ -575,18 +624,23 @@
       const tint = d ? T["tint" + d[0].toUpperCase() + d.slice(1)] : null;
       Draw.board(ctx, S, cols, rows, tint);
       level.walls.forEach(([x, y]) => Draw.wall(ctx, x, y, S));
-      (level.doors || []).forEach(([x, y, c]) => Draw.door(ctx, x, y, c, S));
+      (level.doors || []).forEach(([x, y, c]) => {
+        Draw.door(ctx, x, y, c, S);
+        Draw.badge(ctx, center(x, S), center(y, S), c, S);
+      });
       (level.sensors || []).forEach(([x, y]) => Draw.sensor(ctx, x, y, S));
       (level.portals || []).forEach(([ax, ay, bx, by], i) => {
         Draw.portal(ctx, ax, ay, i, S);
         Draw.portal(ctx, bx, by, i, S);
       });
-      level.sources.forEach((s) =>
-        Draw.source(ctx, center(s.x, S), center(s.y, S), s.d, S),
-      );
-      level.receivers.forEach((r) =>
-        Draw.receiver(ctx, center(r.x, S), center(r.y, S), r.c, S),
-      );
+      level.sources.forEach((s) => {
+        Draw.source(ctx, center(s.x, S), center(s.y, S), s.d, S);
+        Draw.badge(ctx, center(s.x, S), center(s.y, S), s.c, S);
+      });
+      level.receivers.forEach((r) => {
+        Draw.receiver(ctx, center(r.x, S), center(r.y, S), r.c, S);
+        Draw.badge(ctx, center(r.x, S), center(r.y, S), r.c, S);
+      });
       pieces.forEach((p) => {
         if (p !== hidden)
           Draw.piece(
@@ -636,6 +690,9 @@
         runs.forEach(([x0, y0, x1, y1, c]) =>
           Draw.arrows(ctx, x0, y0, x1, y1, c, S, phase),
         );
+      runs.forEach(([x0, y0, x1, y1, c]) =>
+        Draw.beamLetter(ctx, x0, y0, x1, y1, c, S),
+      );
       (level.portals || []).forEach(([ax, ay, bx, by], i) => {
         Draw.portalLight(ctx, ax, ay, i, S, t);
         Draw.portalLight(ctx, bx, by, i, S, t);

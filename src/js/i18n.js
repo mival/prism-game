@@ -58,7 +58,14 @@
       completeLast: "Level complete. That was the last one.",
       holding: "All receivers lit. Keep it like this to finish the level.",
       burning: "Every receiver is lit, but light is hitting a dark sensor.",
-      stuck: "Stuck? The hint button places one piece in its correct spot.",
+      stuck: "Stuck? The hint button shows where a piece belongs.",
+      hintShown:
+        "Look at the marked tile. Tap the hint again to have it done for you.",
+      share: "Share",
+      shareText: ({ date, hints, moves, time, streak, url }) =>
+        `Prism · daily level ${date}\n${hints} · ${moves} · ${time}` +
+        (streak > 1 ? `\n🔥 ${streak}-day streak` : "") +
+        `\n${url}`,
       moves: ({ n }) => `${n} ${en(n, "move", "moves")}`,
       newBest: "new best!",
       noHints: "no hints",
@@ -177,8 +184,16 @@
       completeLast: "Úroveň hotová. Byla to ta poslední.",
       holding: "Všechny přijímače svítí. Nech to tak a úroveň se dokončí.",
       burning: "Všechny přijímače svítí, ale světlo dopadá na temný senzor.",
-      stuck:
-        "Nevíš si rady? Tlačítko nápovědy položí jeden dílek na správné místo.",
+      stuck: "Nevíš si rady? Tlačítko nápovědy ukáže, kam patří dílek.",
+      hintShown:
+        "Podívej se na označené pole. Dalším ťuknutím na nápovědu se tah provede za tebe.",
+      share: "Sdílet",
+      shareText: ({ date, hints, moves, time, streak, url }) =>
+        `Prism · dnešní úroveň ${date}\n${hints} · ${moves} · ${time}` +
+        (streak > 1
+          ? `\n🔥 série ${streak} ${cz(streak, "den", "dny", "dní")}`
+          : "") +
+        `\n${url}`,
       moves: ({ n }) => `${n} ${cz(n, "tah", "tahy", "tahů")}`,
       newBest: "nový rekord!",
       noHints: "bez nápověd",
@@ -451,8 +466,8 @@
     "From level 3 on, the tray also holds decoys.":
       "Od 3. úrovně jsou v zásobníku i dílky navíc, které nejsou potřeba.",
     "Hint.": "Nápověda.",
-    "The bulb button places one piece in its correct spot and locks it, marked with a star. If you haven't moved for 30 seconds, the bulb glows. The level list shows the fewest hints you've needed for each level, so you can come back and solve it without any.":
-      "Tlačítko s žárovkou položí jeden dílek na správné místo a zamkne ho; poznáš ho podle hvězdičky. Když 30 sekund nic neuděláš, žárovka se rozzáří. Seznam úrovní ukazuje u každé úrovně nejmenší počet použitých nápověd, takže se můžeš vrátit a vyřešit ji bez nich.",
+    "The bulb button first marks the tile where a piece belongs; tap it again and the piece is placed there and locked, marked with a star. If you haven't moved for 30 seconds, the bulb glows. The level list shows the fewest hints you've needed for each level, so you can come back and solve it without any.":
+      "Tlačítko s žárovkou nejdřív označí pole, kam patří dílek; dalším ťuknutím ho tam položí a zamkne, poznáš ho podle hvězdičky. Když 30 sekund nic neuděláš, žárovka se rozzáří. Seznam úrovní ukazuje u každé úrovně nejmenší počet použitých nápověd, takže se můžeš vrátit a vyřešit ji bez nich.",
     "Levels.": "Úrovně.",
     "Use the arrows to step through levels, or":
       "Šipkami procházíš úrovně jednu po druhé, tlačítkem",
@@ -565,6 +580,12 @@
     "Auto uses your browser's language.":
       "Automaticky podle jazyka prohlížeče.",
     Theme: "Vzhled",
+    "Color letters": "Písmena barev",
+    "Adds a letter to every colored laser, receiver, door, filter and beam, so color is never the only clue.":
+      "Přidá písmeno ke každému barevnému laseru, přijímači, dveřím, filtru a paprsku, takže barva nikdy není jediným vodítkem.",
+    "Color letters.": "Písmena barev.",
+    "If colors are hard to tell apart, turn on color letters in Settings: every color then also carries a letter (R, G, B, Y, C, M, W).":
+      "Pokud se ti barvy špatně rozlišují, zapni v Nastavení písmena barev: každá barva pak nese i písmeno (Č, Z, M, Ž, A, P, B).",
     Auto: "Automaticky",
     Light: "Světlý",
     Dark: "Tmavý",
@@ -661,6 +682,10 @@
     setChoice,
     t,
     list,
+    letters:
+      lang === "cs"
+        ? { 7: "B", 4: "Č", 2: "Z", 1: "M", 6: "Ž", 3: "A", 5: "P" }
+        : { 7: "W", 4: "R", 2: "G", 1: "B", 6: "Y", 3: "C", 5: "M" },
     levelText,
     endlessName,
     apply,

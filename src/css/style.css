@@ -379,6 +379,15 @@ dialog#levelDialog::backdrop {
   color: var(--bg);
   font-size: 14px;
 }
+.daily-share {
+  flex: 0 0 auto;
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--text);
+  background: var(--text);
+  color: var(--bg);
+  font-size: 14px;
+}
 .daily.done .daily-play {
   background: transparent;
   color: var(--text);
