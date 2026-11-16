@@ -186,7 +186,8 @@ test("today's level is the same on every device and builds a streak", async () =
   assert.equal(codeA, codeB);
   for (
     let i = 0;
-    i < 8 && !(await a.page.evaluate(() => window.__prism.state.result.solved));
+    i < 30 &&
+    !(await a.page.evaluate(() => window.__prism.state.result.solved));
     i++
   )
     await a.page.evaluate(() => window.__prism.giveHint());
@@ -196,7 +197,9 @@ test("today's level is the same on every device and builds a streak", async () =
   const daily = await a.page.evaluate(() =>
     JSON.parse(localStorage.getItem("prism.daily")),
   );
-  assert.deepEqual(daily, { last: "2026-11-12", streak: 1 });
+  assert.equal(daily.last, "2026-11-12");
+  assert.equal(daily.streak, 1);
+  assert.ok(daily.result.hints > 0, "hints used are kept for sharing");
   assert.equal(
     await a.page.evaluate(() => localStorage.getItem("prism.endless")),
     null,
@@ -254,4 +257,91 @@ test("light travels after a change, and stays instant with reduce motion", async
     assert.deepEqual(errors, []);
     await ctx.close();
   }
+});
+
+test("a hint first marks the tile, then places the piece; both count once", async () => {
+  const { ctx, page, errors } = await phone();
+  const placed = () =>
+    page.evaluate(
+      () => window.__prism.state.pieces.filter((q) => !q.fixed).length,
+    );
+  await page.tap("#hint");
+  assert.equal(await placed(), 0, "first tap only marks");
+  assert.ok(await page.evaluate(() => !!window.__prism.state.hintAt));
+  assert.match(await page.textContent("#statusText"), /marked tile/);
+  await page.tap("#hint");
+  assert.equal(await placed(), 1, "second tap places");
+  assert.equal(await page.evaluate(() => window.__prism.state.hintAt), null);
+  assert.equal(
+    await page.evaluate(
+      () => JSON.parse(localStorage.getItem("prism.attempt")).hints,
+    ),
+    1,
+  );
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
+
+test("a solved daily level can be shared as text with a link", async () => {
+  const { ctx, page, errors } = await phone();
+  await ctx.grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.clock.setFixedTime(new Date("2026-11-16T10:00:00"));
+  await page.evaluate(() => {
+    navigator.share = undefined; // use the clipboard path
+    return window.__prism.playEndless(null, null, true);
+  });
+  for (
+    let i = 0;
+    i < 30 && !(await page.evaluate(() => window.__prism.state.result.solved));
+    i++
+  )
+    await page.evaluate(() => window.__prism.giveHint());
+  await page.waitForFunction(() => window.__prism.state.confirmed, null, {
+    timeout: 5000,
+  });
+  assert.equal((await page.textContent("#next")).trim(), "Share");
+  await page.tap("#next");
+  await page.waitForFunction(
+    () => document.getElementById("next").textContent.trim() === "Copied",
+  );
+  const text = await page.evaluate(() => navigator.clipboard.readText());
+  assert.match(text, /^Prism · daily level /);
+  assert.match(text, /💡 \d+ hints? · \d+ moves? · \d+:\d\d/);
+  assert.match(text, /#daily$/);
+  // The link opens today's level.
+  const other = await phone();
+  await other.page.clock.setFixedTime(new Date("2026-11-16T12:00:00"));
+  await other.page.goto("about:blank");
+  await other.page.goto(server.url + "index.html#daily");
+  await other.page.waitForFunction(
+    () =>
+      window.__prism &&
+      window.__prism.state.endless &&
+      window.__prism.state.endless.daily,
+    null,
+    { timeout: 60000 },
+  );
+  assert.deepEqual(errors.concat(other.errors), []);
+  await ctx.close();
+  await other.ctx.close();
+});
+
+test("color letters can be turned on in Settings", async () => {
+  const { ctx, page, errors } = await phone();
+  const lettersOn = () =>
+    page.evaluate(() => !!window.PrismRender.theme.letters);
+  assert.equal(await lettersOn(), false);
+  await page.goto(server.url + "settings.html");
+  await page.check("#letters");
+  await page.goto(server.url + "index.html");
+  await page.waitForFunction(
+    () => window.__prism && window.__prism.state.result,
+  );
+  assert.equal(await lettersOn(), true);
+  assert.equal(
+    await page.evaluate(() => window.PrismRender.theme.letters[4]),
+    "R",
+  );
+  assert.deepEqual(errors, []);
+  await ctx.close();
 });

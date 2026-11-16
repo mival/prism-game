@@ -43,6 +43,10 @@ Prism is a Progressive Web App. `sw.js` caches every file on the first visit, so
 
 The game is in English and Czech. `src/js/i18n.js` picks the language (Settings > Language: Auto follows the browser, Czech or Slovak choosing Czech) and holds the translations: strings built in JavaScript have an English and a Czech entry, and static English text in the pages is swapped for Czech by matching it, so the HTML stays plain English. Czech level names and hints live in `src/js/levels-cs.js`. To translate new text, add its Czech to `STATIC_CS` (static text) or `STRINGS.cs` (text built in code).
 
+### Color letters, hints and sharing
+
+Settings > Color letters (`prism.letters`) adds a letter badge to every colored laser, receiver, glass door and filter and a letter beside each beam, so color is never the only clue; the letters come from `src/js/i18n.js` (R, G, B, Y, C, M, W in English). A hint takes two taps: the first marks the tile to look at, the second makes the move; together they count as one hint. After today's level is solved, Share copies (or opens the share sheet with) a short result text and a `#daily` link that opens today's level.
+
 ### Motion
 
 Pieces turn smoothly and settle when placed; after any change, only the new light grows from where the path changed (`dist` and `len` on each traced run), and receivers light, and chime, when it arrives. A solved level sends a ring out of each receiver with a bloom pulse, and each level fades in. With the system's "reduce motion" setting everything is instant. While a piece is selected, free tiles the light crosses are tinted (`--cell-path`), the board carries a faint chapter tint (`--tint-easy`, `--tint-medium`, `--tint-hard`), and the Levels list shows a small preview of every level, drawn by the same renderer.
