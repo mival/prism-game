@@ -270,7 +270,7 @@ h2 {
   line-height: 0;
 }
 .qr svg {
-  width: min(240px, 70vw);
+  width: min(300px, 80vw);
   height: auto;
   display: block;
 }

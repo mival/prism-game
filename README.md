@@ -23,7 +23,7 @@ There are 60 levels in three chapters, Easy, Medium and Hard, played in that ord
 
 ### Moving progress to another device
 
-Settings (the gear button) shows a QR code and a link ending in `#restore-…` for the other device, plus a save code such as `04FN-MNMS-VF63-RZ97-J19C-C1WG` that can be copied or downloaded as a text file. Scanning the QR code, opening the link, typing the code or loading the file on another device restores the progress, merging with what is there. The format lives in `src/js/progress.js`: solved levels as bits in an append-only list of level ids, Endless wins, the last level and (from format version 2) the fewest hints each solved level took, scrambled and protected by a checksum so typos and edited codes are rejected. It isn't encryption: the page has to be able to read its own codes.
+Settings (the gear button) shows a QR code and a link ending in `#restore-…` for the other device, plus a save code such as `04FN-MNMS-VF63-RZ97-J19C-C1WG` that can be copied or downloaded as a text file. Scanning the QR code, opening the link, typing the code or loading the file on another device restores the progress, merging with what is there. The format lives in `src/js/progress.js`: solved levels as bits in an append-only list of level ids, Endless wins, the last level and (from format version 2) the fewest hints each solved level took. Links, QR codes and files use format version 3, which also carries the best moves and time for each level and the daily streak; the typed code leaves those out to stay short (about 50 characters with every level solved, against about 390). The QR code packs the save code in alphanumeric mode so even a full profile scans from a phone screen. Everything is scrambled and protected by a checksum so typos and edited codes are rejected. It isn't encryption: the page has to be able to read its own codes.
 
 ### Endless mode
 
@@ -49,7 +49,7 @@ Settings > Color letters (`prism.letters`) adds a letter badge to every colored 
 
 ### Motion
 
-Pieces turn smoothly and settle when placed; after any change, only the new light grows from where the path changed (`dist` and `len` on each traced run), and receivers light, and chime, when it arrives. A solved level sends a ring out of each receiver with a bloom pulse, and each level fades in. With the system's "reduce motion" setting everything is instant. While a piece is selected, free tiles the light crosses are tinted (`--cell-path`), the board carries a faint chapter tint (`--tint-easy`, `--tint-medium`, `--tint-hard`), and the Levels list shows a small preview of every level, drawn by the same renderer.
+Pieces turn smoothly and settle when placed; after any change, only the new light grows from where the path changed (`dist` and `len` on each traced run), and receivers light, and chime, when it arrives. A solved level sends a ring out of each receiver with a bloom pulse, and each level fades in. With the system's "reduce motion" setting everything is instant. To save battery, the board stops drawing after 8 seconds without input or animation and wakes on the next touch, key, resize or theme change (and in time to offer a hint when the player seems stuck). While a piece is selected, free tiles the light crosses are tinted (`--cell-path`), the board carries a faint chapter tint (`--tint-easy`, `--tint-medium`, `--tint-hard`), and the Levels list shows a small preview of every level, drawn by the same renderer.
 
 ## Themes
 

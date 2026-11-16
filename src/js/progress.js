@@ -18,9 +18,18 @@
    solved without hints takes 1 bit, unknown (solved before counts were
    kept) or 1 hint take 3 bits, 2-5 hints take 5 bits. A leading flag bit
    marks progress with no hint data at all. Version 1 codes (without hint
-   counts) are still read. */
+   counts) are still read.
+
+   Version 3 (links, QR codes and files, which nobody types) adds, after a
+   length byte for the hint bits: the daily streak (last day solved, as days
+   since 2026-01-01, and the streak; 0 and 0 when none), then for each
+   solved level a flag bit and, if set, its best moves and best time in
+   seconds as exp-Golomb codes. The short code typed by hand stays version
+   2. */
 (function (root) {
   const VERSION = 2;
+  const FULL = 3;
+  const DAY0 = Date.UTC(2026, 0, 1);
 
   /* Append-only: each level's place here is its bit in the code, so levels
      can be reordered or added in the game without breaking old codes. New
@@ -159,6 +168,35 @@
     h === undefined || h === null ? 1 : h === 0 ? 0 : Math.min(h, 200) + 1;
   const fromSymbol = (s) => (s === 0 ? 0 : s === 1 ? undefined : s - 1);
 
+  /* Bits to bytes, most significant first, the last byte zero-padded. */
+  function toBytes(bits) {
+    const bytes = new Array(Math.ceil(bits.length / 8)).fill(0);
+    bits.forEach((b, i) => (bytes[i >> 3] |= b << (7 - (i & 7))));
+    return bytes;
+  }
+  const pushGolomb = (bits, n) => {
+    const v = (n + 1).toString(2);
+    for (let i = 1; i < v.length; i++) bits.push(0);
+    for (const c of v) bits.push(+c);
+  };
+  function bitReader(bytes) {
+    let i = 0;
+    const bit = () => {
+      if (i >= bytes.length * 8) throw new Error("short");
+      const b = (bytes[i >> 3] >> (7 - (i & 7))) & 1;
+      i++;
+      return b;
+    };
+    const golomb = () => {
+      let zeros = 0;
+      while (bit() === 0) if (++zeros > 24) throw new Error("bad");
+      let v = 1;
+      for (let z = 0; z < zeros; z++) v = (v << 1) | bit();
+      return v - 1;
+    };
+    return { bit, golomb };
+  }
+
   /* A leading flag bit: 0 = no hint data at all (every solve predates hint
      counts, the common case for older progress), 1 = one code per solve. */
   function packHints(symbols) {
@@ -197,8 +235,10 @@
   }
 
   /* progress = { done: [level ids], endless: { easy, medium, hard }, level,
-     hints: { id: fewest hints } } */
-  function encode(progress) {
+     hints: { id: fewest hints }, stats: { id: { moves, ms } },
+     daily: { last: "YYYY-MM-DD", streak } }. `full` makes a version 3
+     code with stats and the streak, for links, QR codes and files. */
+  function encode(progress, { full = false } = {}) {
     const n = SAVE_IDS.length;
     const mask = new Array(Math.ceil(n / 8)).fill(0);
     const done = new Set(progress.done || []);
@@ -213,16 +253,36 @@
       ...u16(e.medium),
       ...u16(e.hard),
       Math.max(0, Math.min(255, progress.level | 0)),
-      ...packHints(
-        SAVE_IDS.filter((id) => done.has(id)).map((id) =>
-          toSymbol((progress.hints || {})[id]),
-        ),
-      ),
     ];
-    const sum = checksum([VERSION, ...body]);
+    const solvedIds = SAVE_IDS.filter((id) => done.has(id));
+    const hintBytes = packHints(
+      solvedIds.map((id) => toSymbol((progress.hints || {})[id])),
+    );
+    const version = full ? FULL : VERSION;
+    if (full) {
+      body.push(hintBytes.length, ...hintBytes);
+      const d = progress.daily || {};
+      const day = d.last
+        ? Math.round((Date.parse(d.last + "T00:00:00Z") - DAY0) / 864e5) + 1
+        : 0;
+      body.push(...u16(day > 0 ? day : 0), ...u16(day > 0 ? d.streak : 0));
+      const bits = [];
+      for (const id of solvedIds) {
+        const st = (progress.stats || {})[id];
+        if (!st) {
+          bits.push(0);
+          continue;
+        }
+        bits.push(1);
+        pushGolomb(bits, Math.max(0, Math.min(100000, st.moves | 0)));
+        pushGolomb(bits, Math.max(0, Math.min(1e6, Math.round(st.ms / 1000))));
+      }
+      body.push(...toBytes(bits));
+    } else body.push(...hintBytes);
+    const sum = checksum([version, ...body]);
     const key = keystream(body.length + 2);
     const scrambled = [...body, ...sum].map((b, i) => b ^ key[i]);
-    const code = toBase32([VERSION, ...scrambled]);
+    const code = toBase32([version, ...scrambled]);
     return code.match(/.{1,4}/g).join("-");
   }
 
@@ -231,7 +291,7 @@
     const bytes = fromBase32(String(code || ""));
     if (!bytes || bytes.length < 4) return null;
     const version = bytes[0];
-    if (version !== 1 && version !== 2) return null;
+    if (version !== 1 && version !== 2 && version !== FULL) return null;
     const rest = bytes.slice(1);
     const key = keystream(rest.length);
     const plain = rest.map((b, i) => b ^ key[i]);
@@ -252,10 +312,21 @@
     const at = 1 + maskLen;
     const num = (i) => (body[at + i] << 8) | body[at + i + 1];
     const hints = {};
-    if (version === 2) {
+    const stats = {};
+    let daily = null;
+    if (version >= 2) {
+      let hintBytes = body.slice(fixedLen);
+      let rest = [];
+      if (version === FULL) {
+        const hl = body[fixedLen];
+        if (hl === undefined || fixedLen + 1 + hl + 4 > body.length)
+          return null;
+        hintBytes = body.slice(fixedLen + 1, fixedLen + 1 + hl);
+        rest = body.slice(fixedLen + 1 + hl);
+      }
       let symbols;
       try {
-        symbols = unpackHints(body.slice(fixedLen), done.length);
+        symbols = unpackHints(hintBytes, done.length);
       } catch (e) {
         return null;
       }
@@ -263,12 +334,31 @@
         const h = fromSymbol(symbols[i]);
         if (h !== undefined) hints[id] = h;
       });
+      if (version === FULL) {
+        const day = (rest[0] << 8) | rest[1];
+        const streak = (rest[2] << 8) | rest[3];
+        if (day > 0 && streak > 0)
+          daily = {
+            last: new Date(DAY0 + (day - 1) * 864e5).toISOString().slice(0, 10),
+            streak,
+          };
+        try {
+          const r = bitReader(rest.slice(4));
+          for (const id of done)
+            if (r.bit())
+              stats[id] = { moves: r.golomb(), ms: r.golomb() * 1000 };
+        } catch (e) {
+          return null;
+        }
+      }
     }
     return {
       done,
       endless: { easy: num(0), medium: num(2), hard: num(4) },
       level: body[at + 6],
       hints,
+      stats,
+      daily,
     };
   }
 
@@ -321,9 +411,12 @@
       done: read("prism.done", []),
       endless: { easy: 0, medium: 0, hard: 0, ...read("prism.endless", {}) },
       level: SAVE_IDS.indexOf(currentLevelId()),
-      // Fewest hints per solved level. Kept on this device only; save
-      // codes don't carry it, to keep them short.
+      // Fewest hints per solved level.
       hints: read("prism.hints", {}),
+      // Best moves and time per solved level, and the daily streak (only
+      // full codes carry these).
+      stats: read("prism.stats", {}),
+      daily: read("prism.daily", null),
     };
   }
 
@@ -344,6 +437,30 @@
     write("prism.endless", endless);
     write("prism.levelId", SAVE_IDS[p.level] || currentLevelId());
     write("prism.hints", hints);
+    // Best of each per level; the more recent daily streak.
+    const stats = { ...here.stats };
+    for (const [id, st] of Object.entries(p.stats || {})) {
+      const mine = stats[id];
+      stats[id] = mine
+        ? {
+            moves: Math.min(mine.moves, st.moves),
+            ms: Math.min(mine.ms, st.ms),
+          }
+        : st;
+    }
+    write("prism.stats", stats);
+    const d = here.daily;
+    if (
+      p.daily &&
+      (!d ||
+        !d.last ||
+        p.daily.last > d.last ||
+        (p.daily.last === d.last && p.daily.streak > d.streak))
+    )
+      write("prism.daily", {
+        ...(d && d.last === p.daily.last ? d : {}),
+        ...p.daily,
+      });
     return {
       added: done.size - before,
       solved: p.done.length,
