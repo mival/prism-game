@@ -67,3 +67,29 @@ test("a code is found inside a saved file", () => {
   const code = P.encode({ done: ids.slice(0, 2), endless: {}, level: 0 });
   assert.equal(P.findCode(`Prism save code\n\n${code}\n\nmore text`), code);
 });
+
+test("the full code also carries best results and the daily streak", () => {
+  const stats = {
+    [ids[0]]: { moves: 3, ms: 12000 },
+    [ids[7]]: { moves: 41, ms: 3605000 },
+  };
+  const daily = { last: "2026-11-16", streak: 12 };
+  const progress = {
+    done: [ids[0], ids[7], ids[9]],
+    endless: { easy: 2, medium: 0, hard: 1 },
+    level: 7,
+    hints: { [ids[0]]: 0, [ids[7]]: 3 },
+    stats,
+    daily,
+  };
+  const full = P.decode(P.encode(progress, { full: true }));
+  assert.deepEqual(full.stats, stats);
+  assert.deepEqual(full.daily, daily);
+  assert.deepEqual(full.hints, progress.hints);
+  assert.deepEqual(full.done.sort(), progress.done.slice().sort());
+  // The typed code stays short and leaves them out.
+  const short = P.encode(progress);
+  assert.ok(short.length < P.encode(progress, { full: true }).length);
+  assert.deepEqual(P.decode(short).stats, {});
+  assert.equal(P.decode(short).daily, null);
+});

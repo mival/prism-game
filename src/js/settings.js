@@ -97,10 +97,13 @@
 
   /* ------------------------------ progress ------------------------------ */
 
+  /* The short code is for typing; links, QR codes and files carry the full
+     code, with best moves, times and the daily streak too. */
   const code = () => P.encode(P.readLocal());
+  const fullCode = () => P.encode(P.readLocal(), { full: true });
   /* The link opens the game, which restores the code from the address. */
   const link = () =>
-    new URL("./#restore-" + code().replace(/-/g, ""), location.href).href;
+    new URL("./#restore-" + fullCode().replace(/-/g, ""), location.href).href;
 
   function renderSummary() {
     const p = P.readLocal();
@@ -118,8 +121,15 @@
   }
 
   function renderQr() {
-    const qr = window.qrcode(0, "M");
-    qr.addData(link());
+    // The save code part is uppercase letters and digits, which QR codes
+    // pack more tightly (alphanumeric mode) than the rest of the address.
+    // Long links (lots of progress) also use the lighter error correction;
+    // both keep the code coarse enough to scan from a phone screen.
+    const url = link();
+    const at = url.indexOf("#restore-") + "#restore-".length;
+    const qr = window.qrcode(0, url.length > 200 ? "L" : "M");
+    qr.addData(url.slice(0, at), "Byte");
+    qr.addData(url.slice(at), "Alphanumeric");
     qr.make();
     const n = qr.getModuleCount();
     let d = "";
@@ -163,7 +173,7 @@
   }
   $("copyCode").addEventListener("click", () => copy(code(), $("copyCode")));
   $("download").addEventListener("click", () => {
-    const text = t("saveFile", { code: code(), link: link() });
+    const text = t("saveFile", { code: fullCode(), link: link() });
     const url = URL.createObjectURL(new Blob([text], { type: "text/plain" }));
     const a = document.createElement("a");
     a.href = url;

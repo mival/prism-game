@@ -608,8 +608,8 @@
     "Scan with the other device's camera.":
       "Naskenuj fotoaparátem druhého zařízení.",
     "Save code and file": "Kód a soubor",
-    "The same progress as a code you can type on the other device, under Settings > Restore. Dashes and spaces don't matter.":
-      "Stejný postup jako kód, který můžeš opsat na druhém zařízení v Nastavení > Obnovit. Na pomlčkách a mezerách nezáleží.",
+    "Your progress as a short code you can type on the other device, under Settings > Restore. Dashes and spaces don't matter. The link, QR code and file also carry your best moves and times and your daily streak; the typed code leaves them out to stay short.":
+      "Tvůj postup jako krátký kód, který můžeš opsat na druhém zařízení v Nastavení > Obnovit. Na pomlčkách a mezerách nezáleží. Odkaz, QR kód a soubor nesou navíc tvé nejlepší tahy a časy a sérii denních úrovní; opisovaný kód je vynechává, aby zůstal krátký.",
     "Copy code": "Kopírovat kód",
     "Download file": "Stáhnout soubor",
     Restore: "Obnovit",

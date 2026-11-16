@@ -101,6 +101,9 @@
     /* Best solve per campaign level: { id: { moves, ms } }. */
     bestStats: load("prism.stats", {}),
     lastSolve: null,
+    get sleeping() {
+      return sleeping;
+    },
     /* Hints used on the current Endless or daily level. */
     sessionHints: 0,
     /* Tile marked by the first tap of a hint. */
@@ -138,6 +141,7 @@
       theme.themeColor;
     renderTray();
     state.baseDirty = true;
+    wake();
   }
 
   window
@@ -729,6 +733,7 @@
   function update() {
     const lv = level();
     state.hintAt = null;
+    wake();
     state.result = L.trace(lv, state.pieces);
     state.reveal = makeReveal(state.prevResult, state.result, lv);
     state.prevResult = state.result;
@@ -1129,6 +1134,8 @@
     state.done = new Set(p.done);
     state.endlessSolved = p.endless;
     state.bestHints = p.hints;
+    state.bestStats = p.stats;
+    if (p.daily) state.daily = p.daily;
     renderLevels();
     renderEndless();
   }
@@ -1393,6 +1400,7 @@
     state.S = S;
     state.baseDirty = true;
     syncTools();
+    wake();
   }
 
   /* ------------------------------ input ------------------------------ */
@@ -1887,6 +1895,49 @@
     ctx.globalCompositeOperation = "source-over";
   }
 
+  /* ------------------------------ sleeping ------------------------------ */
+
+  /* Drawing every frame costs battery even when nothing moves. After a few
+     quiet seconds the loop stops and the last frame stays on screen; any
+     touch, key or change wakes it. It also wakes when the stuck nudge is
+     due, so the hint button still glows. */
+  const IDLE_MS = 8000;
+  let sleeping = false;
+  let lastActive = performance.now();
+  let wakeTimer = 0;
+  function wake() {
+    lastActive = performance.now();
+    if (!sleeping) return;
+    sleeping = false;
+    clearTimeout(wakeTimer);
+    state.baseDirty = true;
+    requestAnimationFrame(frame);
+  }
+  ["pointerdown", "pointermove", "keydown", "wheel", "touchstart"].forEach(
+    (e) => window.addEventListener(e, wake, { passive: true, capture: true }),
+  );
+  document.addEventListener("visibilitychange", wake);
+  function busy(t) {
+    return (
+      motion.size ||
+      state.reveal ||
+      state.drag ||
+      state.hintAt ||
+      (state.holdSince !== null && !state.confirmed) ||
+      (state.solvedAt !== null && t - state.solvedAt < BURST_MS)
+    );
+  }
+  function maybeSleep(t) {
+    if (busy(t) || t - lastActive < IDLE_MS) return false;
+    sleeping = true;
+    if (!state.confirmed && !state.stuck)
+      wakeTimer = setTimeout(
+        wake,
+        Math.max(0, state.lastMove + STUCK_MS - performance.now() + 50),
+      );
+    return true;
+  }
+
   function frame(t) {
     if (
       state.holdSince !== null &&
@@ -1913,7 +1964,7 @@
     const boost = e < 1 && !reduceMotion ? 1 + 1.4 * Math.pow(1 - e, 2) : 1;
     compositor.render(base, light, baseDirty, boost);
     state.baseDirty = false;
-    requestAnimationFrame(frame);
+    if (!maybeSleep(t)) requestAnimationFrame(frame);
   }
 
   /* ------------------------------ boot ------------------------------ */

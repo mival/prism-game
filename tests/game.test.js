@@ -345,3 +345,53 @@ test("color letters can be turned on in Settings", async () => {
   assert.deepEqual(errors, []);
   await ctx.close();
 });
+
+test("the board stops drawing when idle and wakes on a touch", async () => {
+  const { ctx, page, errors } = await phone();
+  const sleeping = () => page.evaluate(() => window.__prism.state.sleeping);
+  assert.equal(await sleeping(), false);
+  await page.waitForFunction(() => window.__prism.state.sleeping, null, {
+    timeout: 15000,
+  });
+  await page.waitForTimeout(500); // and stays asleep
+  assert.equal(await sleeping(), true);
+  await tapCell(page, 0, 0);
+  assert.equal(await sleeping(), false);
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
+
+test("the Settings link also carries best results and the streak", async () => {
+  const a = await phone();
+  await a.ctx.grantPermissions(["clipboard-read", "clipboard-write"]);
+  await a.page.evaluate(() => {
+    localStorage.setItem("prism.done", JSON.stringify(["first-light"]));
+    localStorage.setItem(
+      "prism.stats",
+      JSON.stringify({ "first-light": { moves: 3, ms: 12000 } }),
+    );
+    localStorage.setItem(
+      "prism.daily",
+      JSON.stringify({ last: "2026-11-16", streak: 4 }),
+    );
+  });
+  await a.page.goto(server.url + "settings.html");
+  await a.page.click("#copyLink");
+  const link = await a.page.evaluate(() => navigator.clipboard.readText());
+  const b = await phone();
+  await b.page.goto("about:blank");
+  await b.page.goto(link.replace(/^.*?#/, server.url + "index.html#"));
+  await b.page.waitForFunction(() =>
+    document.getElementById("statusText").textContent.includes("Restored"),
+  );
+  const saved = await b.page.evaluate(() => [
+    JSON.parse(localStorage.getItem("prism.stats")),
+    JSON.parse(localStorage.getItem("prism.daily")),
+  ]);
+  assert.deepEqual(saved[0], { "first-light": { moves: 3, ms: 12000 } });
+  assert.equal(saved[1].streak, 4);
+  assert.equal(saved[1].last, "2026-11-16");
+  assert.deepEqual(a.errors.concat(b.errors), []);
+  await a.ctx.close();
+  await b.ctx.close();
+});
