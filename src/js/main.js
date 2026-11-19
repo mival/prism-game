@@ -754,6 +754,7 @@
     renderTray();
     renderLevels();
     syncTools();
+    Coach.sync();
     state.baseDirty = true;
   }
 
@@ -818,6 +819,7 @@
     }
     renderStatus();
     renderLevels();
+    Coach.sync();
   }
 
   /* ------------------------------ undo ------------------------------ */
@@ -931,6 +933,7 @@
       state.pieces.push(p);
       state.inv[trayId]--;
       Sound.place();
+      Coach.did("tile");
       startPop(p);
       if (state.inv[trayId] <= 0) state.armed = null;
       update();
@@ -946,6 +949,7 @@
         else Sound.rotate();
         startTurn(p, by);
         p.k = (((p.k + by) % states) + states) % states;
+        Coach.did("turn");
         update();
       });
   }
@@ -1069,6 +1073,180 @@
   el.hint.addEventListener("click", () => {
     if (!state.busy) giveHint();
   });
+
+  /* ------------------------------ first-run coach ------------------------------ */
+
+  /* On the first visit, an animated hand teaches the three gestures: tap a
+     tray piece, tap a tile to place it, tap a placed piece to turn it. Each
+     gesture shows until the player does it once (prism.coach keeps the list).
+     The first level teaches the tray and the tile, and shows the way to its
+     one correct tile. Its mirror starts in the correct turn, so turning
+     usually comes on the second level, where the hand points at the last
+     placed piece and gives nothing away. The coach shows only to new players
+     (no level solved). It stops for good when all three gestures are done,
+     when the player skips it, or when the player goes past the second level.
+     It never takes input: taps pass through to the board and the tray. */
+  const Coach = (function () {
+    const HAND =
+      '<svg viewBox="0 0 48 52" width="44" height="48" aria-hidden="true">' +
+      '<defs><g id="coachHandShape">' +
+      '<rect x="10" y="2" width="8" height="26" rx="4"/>' +
+      '<rect x="10" y="20" width="24" height="22" rx="8"/>' +
+      '<rect x="18" y="18" width="7" height="12" rx="3.5"/>' +
+      '<rect x="25" y="20" width="7" height="11" rx="3.5"/>' +
+      '<rect x="3" y="24" width="14" height="8" rx="4" transform="rotate(35 10 28)"/>' +
+      '<rect x="13" y="40" width="18" height="9" rx="2"/>' +
+      '</g></defs><use href="#coachHandShape" class="edge"/>' +
+      '<use href="#coachHandShape" class="fill"/></svg>';
+
+    const GESTURES = ["tray", "tile", "turn"];
+    const saved = load("prism.coach", []);
+    let on = Array.isArray(saved) && state.done.size === 0;
+    const learned = new Set(on ? saved : GESTURES);
+    let root = null,
+      hand = null,
+      ripple = null,
+      tip = null,
+      text = null,
+      shown = "";
+
+    function build() {
+      root = document.createElement("div");
+      root.className = "coach";
+      root.id = "coach";
+      root.hidden = true;
+      ripple = document.createElement("div");
+      ripple.className = "coach-ripple";
+      hand = document.createElement("div");
+      hand.className = "coach-hand";
+      hand.innerHTML = `<div class="coach-move">${HAND}</div>`;
+      tip = document.createElement("div");
+      tip.className = "coach-tip";
+      tip.setAttribute("role", "status");
+      text = document.createElement("p");
+      const skip = document.createElement("button");
+      skip.type = "button";
+      skip.className = "coach-skip";
+      skip.textContent = t("coachSkip");
+      skip.addEventListener("click", stop);
+      tip.append(text, skip);
+      root.append(ripple, hand, tip);
+      document.body.appendChild(root);
+    }
+
+    function stop() {
+      on = false;
+      save("prism.coach", true);
+      if (root) root.hidden = true;
+    }
+
+    /* The player did a gesture: tap the tray ("tray"), place a piece
+       ("tile", which also counts a drag from the tray), or turn ("turn"). */
+    function did(g) {
+      if (!on || learned.has(g)) return;
+      learned.add(g);
+      if (g === "tile") learned.add("tray");
+      if (GESTURES.every((x) => learned.has(x))) return stop();
+      save("prism.coach", [...learned]);
+    }
+
+    /* Screen box of a tile, or of the tray chip for a tray id. */
+    function tileBox(x, y) {
+      const b = el.board.getBoundingClientRect();
+      const cs = b.width / L.COLS;
+      return {
+        x: b.left + (x + 0.5) * cs,
+        y: b.top + (y + 0.5) * cs,
+      };
+    }
+    function chipBox(id) {
+      const i = Object.keys(level().tray).indexOf(id);
+      const chip = el.tray.children[i];
+      if (!chip) return null;
+      // Point at the piece's picture, not at its name.
+      const r = (chip.querySelector("canvas") || chip).getBoundingClientRect();
+      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    }
+
+    /* What the player should do next, or null for nothing to show. */
+    function step() {
+      if (!state.result || state.result.solved) return null;
+      const turnable = state.pieces.filter(
+        (p) => movable(p) && L.PIECES[p.type].states > 1,
+      );
+      // Turning: point at the last placed piece, wherever it is.
+      if (!learned.has("turn") && turnable.length && state.level > 0) {
+        const p = turnable[turnable.length - 1];
+        return { kind: "tap", at: tileBox(p.x, p.y), say: "coachTurn" };
+      }
+      if (state.level > 0) return null;
+      // The first level: show the way to its one correct tile.
+      const goal = level().solution.placed[0];
+      const piece = state.pieces.find((p) => !p.fixed && p.trayId === goal.id);
+      if (!piece)
+        return state.armed === goal.id
+          ? { kind: "tap", at: tileBox(goal.x, goal.y), say: "coachTile" }
+          : { kind: "tap", at: chipBox(goal.id), say: "coachTray" };
+      if (piece.x !== goal.x || piece.y !== goal.y)
+        return {
+          kind: "drag",
+          from: tileBox(piece.x, piece.y),
+          at: tileBox(goal.x, goal.y),
+          say: "coachMove",
+        };
+      return learned.has("turn")
+        ? null
+        : { kind: "tap", at: tileBox(goal.x, goal.y), say: "coachTurn" };
+    }
+
+    /* Puts the hand and the tip where the next step is. */
+    function sync() {
+      if (!on) return;
+      if (state.endless || state.level > 1) return stop();
+      if (state.confirmed && state.level === 1) return stop();
+      const s = step();
+      if (!root) build();
+      if (!s || !s.at) {
+        root.hidden = true;
+        return;
+      }
+      root.hidden = false;
+      // Without motion the hand can't show the drag: it waits at the end.
+      const start = s.kind === "drag" && !reduceMotion ? s.from : s.at;
+      hand.style.left = start.x + "px";
+      hand.style.top = start.y + "px";
+      hand.style.setProperty("--dx", s.at.x - start.x + "px");
+      hand.style.setProperty("--dy", s.at.y - start.y + "px");
+      ripple.style.left = s.at.x + "px";
+      ripple.style.top = s.at.y + "px";
+      root.dataset.kind = s.kind;
+      // Restart the animation only when the step changes.
+      const sig = s.kind + s.say;
+      if (sig !== shown) {
+        shown = sig;
+        text.textContent = t(s.say);
+        root.classList.remove("play");
+        void root.offsetWidth;
+        if (!reduceMotion) root.classList.add("play");
+      }
+      // The tip covers the status line (it only repeats the level hint),
+      // so it never hides a tile or the tray, and Skip never takes a tap
+      // meant for the board.
+      const r = el.status.getBoundingClientRect();
+      tip.style.left = r.left + "px";
+      tip.style.top = r.top + "px";
+      tip.style.width = r.width + "px";
+      tip.style.minHeight = r.height + "px";
+    }
+
+    return {
+      sync,
+      did,
+      get on() {
+        return on;
+      },
+    };
+  })();
 
   /* ------------------------------ UI chrome ------------------------------ */
 
@@ -1375,7 +1553,9 @@
   function toggleArmed(id) {
     if (state.inv[id] <= 0) return;
     state.armed = state.armed === id ? null : id;
+    if (state.armed) Coach.did("tray");
     renderTray();
+    Coach.sync();
     state.baseDirty = true;
   }
 
@@ -1400,6 +1580,7 @@
     state.S = S;
     state.baseDirty = true;
     syncTools();
+    Coach.sync();
     wake();
   }
 
@@ -1534,6 +1715,7 @@
     if (e.key === "Escape" && state.armed) {
       state.armed = null;
       renderTray();
+      Coach.sync();
       state.baseDirty = true;
     }
   });
@@ -2020,6 +2202,7 @@
     theme,
     giveHint,
     loadLevel,
+    coach: Coach,
     playEndless,
     restore,
   };

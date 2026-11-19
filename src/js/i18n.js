@@ -61,6 +61,11 @@
       stuck: "Stuck? The hint button shows where a piece belongs.",
       hintShown:
         "Look at the marked tile. Tap the hint again to have it done for you.",
+      coachTray: "Tap the piece in the tray to pick it up.",
+      coachTile: "Now tap the tile the hand points to.",
+      coachMove: "Drag the piece to the tile the hand points to.",
+      coachTurn: "Tap a placed piece to turn it.",
+      coachSkip: "Skip",
       share: "Share",
       shareText: ({ date, hints, moves, time, streak, url }) =>
         `Prism · daily level ${date}\n${hints} · ${moves} · ${time}` +
@@ -187,6 +192,11 @@
       stuck: "Nevíš si rady? Tlačítko nápovědy ukáže, kam patří dílek.",
       hintShown:
         "Podívej se na označené pole. Dalším ťuknutím na nápovědu se tah provede za tebe.",
+      coachTray: "Ťukni na dílek v zásobníku a vezmi ho.",
+      coachTile: "Teď ťukni na pole, kam ukazuje ruka.",
+      coachMove: "Přetáhni dílek na pole, kam ukazuje ruka.",
+      coachTurn: "Ťukni na položený dílek a otoč ho.",
+      coachSkip: "Přeskočit",
       share: "Sdílet",
       shareText: ({ date, hints, moves, time, streak, url }) =>
         `Prism · dnešní úroveň ${date}\n${hints} · ${moves} · ${time}` +
