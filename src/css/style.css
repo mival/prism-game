@@ -840,3 +840,142 @@ dialog#levelDialog::backdrop {
   line-height: 1;
   padding: 4px 8px;
 }
+
+/* First-run coach: an animated hand and a tip over the board and the tray.
+   main.js places them. Only the Skip button takes input. */
+.coach {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+}
+.coach-hand {
+  position: fixed;
+  width: 0;
+  height: 0;
+}
+/* The fingertip sits at the hand's (left, top). */
+.coach-move svg {
+  display: block;
+  margin: -2px 0 0 -13px;
+  filter: drop-shadow(0 3px 6px rgb(0 0 0 / 0.35));
+}
+.coach-hand .edge {
+  fill: rgb(20 20 28 / 0.85);
+  stroke: rgb(20 20 28 / 0.85);
+  stroke-width: 4;
+  stroke-linejoin: round;
+}
+.coach-hand .fill {
+  fill: #fff;
+}
+.coach-ripple {
+  position: fixed;
+  width: 44px;
+  height: 44px;
+  margin: -22px 0 0 -22px;
+  border-radius: 50%;
+  border: 2px solid var(--text);
+  opacity: 0;
+}
+.coach[data-kind="drag"] .coach-ripple {
+  display: none;
+}
+.coach-tip {
+  position: fixed;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 8px 8px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 15px;
+  line-height: 1.35;
+  letter-spacing: normal;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.3);
+}
+.coach-tip p {
+  flex: 1;
+  margin: 0;
+}
+.coach-skip {
+  pointer-events: auto;
+  flex: none;
+  font-family: var(--mono);
+  font-size: 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--text);
+  padding: 6px 10px;
+  cursor: pointer;
+}
+.coach.play[data-kind="tap"] .coach-move {
+  animation: coach-tap 1.6s ease-in-out infinite;
+}
+.coach.play[data-kind="tap"] .coach-ripple {
+  animation: coach-ripple 1.6s ease-out infinite;
+}
+.coach.play[data-kind="drag"] .coach-move {
+  animation: coach-drag 2s ease-in-out infinite;
+}
+@keyframes coach-tap {
+  0%,
+  100% {
+    transform: translate(10px, 14px);
+  }
+  40% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(0, 0) scale(0.88);
+  }
+  60% {
+    transform: translate(0, 0) scale(1);
+  }
+}
+@keyframes coach-ripple {
+  0%,
+  45% {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scale(0.5);
+  }
+  90%,
+  100% {
+    opacity: 0;
+    transform: scale(1.4);
+  }
+}
+@keyframes coach-drag {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0);
+  }
+  12% {
+    opacity: 1;
+    transform: translate(0, 0) scale(1);
+  }
+  22% {
+    transform: translate(0, 0) scale(0.88);
+  }
+  72% {
+    opacity: 1;
+    transform: translate(var(--dx), var(--dy)) scale(0.88);
+  }
+  82% {
+    opacity: 1;
+    transform: translate(var(--dx), var(--dy)) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--dx), var(--dy));
+  }
+}

@@ -282,6 +282,70 @@ test("a hint first marks the tile, then places the piece; both count once", asyn
   await ctx.close();
 });
 
+test("a first-run hand teaches tap, place and turn", async () => {
+  const { ctx, page, errors } = await phone();
+  const tip = () =>
+    page.evaluate(() => {
+      const c = document.getElementById("coach");
+      return c && !c.hidden ? c.querySelector("p").textContent : null;
+    });
+  // Level 1: the hand points at the tray, then at the correct tile.
+  assert.match(await tip(), /piece in the tray/);
+  await page.tap("#tray .chip");
+  assert.match(await tip(), /tap the tile/);
+  const goal = await page.evaluate(
+    () => window.__prism.L.LEVELS[0].solution.placed[0],
+  );
+  // A piece on the wrong tile: the hand shows the drag to the right one.
+  await tapCell(page, goal.x - 1, goal.y + 1);
+  assert.match(await tip(), /Drag the piece/);
+  await page.evaluate(() => window.__prism.loadLevel(0));
+  await page.tap("#tray .chip");
+  await tapCell(page, goal.x, goal.y);
+  assert.equal(await tip(), null, "solved: nothing to show");
+  await page.waitForFunction(() => window.__prism.state.confirmed, null, {
+    timeout: 5000,
+  });
+  // Level 2: turning is taught on the piece just placed.
+  await page.evaluate(() => window.__prism.loadLevel(1));
+  assert.equal(await tip(), null);
+  await page.tap("#tray .chip");
+  await tapCell(page, 3, 3);
+  assert.match(await tip(), /turn it/);
+  await tapCell(page, 3, 3);
+  assert.equal(await tip(), null);
+  assert.equal(
+    await page.evaluate(() => localStorage.getItem("prism.coach")),
+    "true",
+    "all three gestures done",
+  );
+  await page.reload();
+  await page.waitForFunction(() => window.__prism?.state.result);
+  assert.equal(await page.$("#coach"), null, "not shown after a reload");
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
+
+test("the first-run hand can be skipped and skips returning players", async () => {
+  const { ctx, page, errors } = await phone({ locale: "cs-CZ" });
+  assert.match(await page.textContent("#coach p"), /zásobníku/);
+  await page.tap(".coach-skip");
+  assert.equal(await page.isHidden("#coach"), true);
+  await page.reload();
+  await page.waitForFunction(() => window.__prism?.state.result);
+  assert.equal(await page.$("#coach"), null);
+  // A player with progress from before never sees it.
+  await page.evaluate(() => {
+    localStorage.removeItem("prism.coach");
+    localStorage.setItem("prism.done", JSON.stringify(["first-light"]));
+  });
+  await page.reload();
+  await page.waitForFunction(() => window.__prism?.state.result);
+  assert.equal(await page.$("#coach"), null);
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
+
 test("a solved daily level can be shared as text with a link", async () => {
   const { ctx, page, errors } = await phone();
   await ctx.grantPermissions(["clipboard-read", "clipboard-write"]);
