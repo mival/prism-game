@@ -2,7 +2,8 @@
 
 (function () {
   const L = window.PrismLogic;
-  const { Draw, Scene, Compositor, readTheme, theme } = window.PrismRender;
+  const { Draw, Scene, Compositor, webglKnown, webglCheck, readTheme, theme } =
+    window.PrismRender;
   const $ = (id) => document.getElementById(id);
 
   const el = {
@@ -19,6 +20,9 @@
     dailyPlay: $("dailyPlay"),
     dailyNote: $("dailyNote"),
     dailyShare: $("dailyShare"),
+    pastBtn: $("dailyPastBtn"),
+    past: $("dailyPast"),
+    pastGrid: $("dailyPastGrid"),
     undo: $("undo"),
     redo: $("redo"),
     status: $("status"),
@@ -67,7 +71,15 @@
   const light = document.createElement("canvas");
   const bctx = base.getContext("2d");
   const lctx = light.getContext("2d");
-  const compositor = new Compositor(el.board);
+  /* Draws the frame on the board. On a first visit it does not exist until
+     a worker has checked that WebGL starts (see render.js), which usually
+     takes less than 0.1 s. The check has a time limit. */
+  let compositor = null;
+  const startCompositor = (webgl) => {
+    compositor = new Compositor(el.board, { webgl });
+    state.baseDirty = true;
+    wake();
+  };
 
   const state = {
     level: 0,
@@ -90,6 +102,9 @@
     endlessSolved: load("prism.endless", { easy: 0, medium: 0, hard: 0 }),
     /* Daily level: last date solved (YYYY-MM-DD) and the streak of days. */
     daily: load("prism.daily", { last: null, streak: 0 }),
+    /* Every day whose daily level was solved (YYYY-MM-DD), on the day or
+       later. Only prism.daily counts for the streak. */
+    dailyDays: new Set(load("prism.dailyDays", [])),
     prefetch: null,
     /* Undo and redo: board snapshots before each change. */
     undo: [],
@@ -533,7 +548,13 @@
       : 0;
   /* The first solve of the day counts: its moves, time and hints are kept
      for sharing. */
+  function recordDay(key) {
+    if (state.dailyDays.has(key)) return;
+    state.dailyDays.add(key);
+    save("prism.dailyDays", [...state.dailyDays]);
+  }
   function recordDaily(key) {
+    recordDay(key);
     if (state.daily.last === key) return;
     const s = state.lastSolve || { moves: 0, ms: 0 };
     state.daily = {
@@ -564,7 +585,70 @@
     el.dailyCard.classList.toggle("done", solved);
     el.dailyShare.hidden = !(solved && state.daily.result);
     el.dailyShare.textContent = t("share");
+    if (solved) recordDay(d.key); // also solves from before this list
+    if (!el.past.hidden) renderPast();
   }
+
+  /* Earlier days: a small calendar of the last PAST_DAYS days. The level of
+     a day comes from its date, so a missed day can still be played. These
+     solves are kept in prism.dailyDays and do not change the streak. */
+  const PAST_DAYS = 28;
+  function renderPast() {
+    el.pastGrid.textContent = "";
+    const now = new Date();
+    const days = [];
+    for (let i = PAST_DAYS - 1; i >= 0; i--)
+      days.push(new Date(now.getFullYear(), now.getMonth(), now.getDate() - i));
+    // Weeks start on Monday. Names of the days come from the first week.
+    const col = (d) => (d.getDay() + 6) % 7;
+    for (let c = 0; c < 7; c++) {
+      const head = document.createElement("span");
+      head.className = "past-head";
+      head.setAttribute("aria-hidden", "true");
+      // 2024-01-01 was a Monday.
+      head.textContent = new Date(2024, 0, 1 + c).toLocaleDateString(
+        I18n.locale,
+        { weekday: "narrow" },
+      );
+      el.pastGrid.appendChild(head);
+    }
+    for (let c = 0; c < col(days[0]); c++)
+      el.pastGrid.appendChild(document.createElement("span"));
+    days.forEach((d, i) => {
+      const info = dailyFor(d);
+      const today = i === days.length - 1;
+      const solved = state.dailyDays.has(info.key);
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className =
+        "past-day " +
+        info.difficulty +
+        (solved ? " solved" : "") +
+        (today ? " today" : "");
+      b.textContent = d.getDate();
+      b.dataset.day = info.key;
+      b.setAttribute(
+        "aria-label",
+        t("pastDay", {
+          date: d.toLocaleDateString(I18n.locale, {
+            weekday: "long",
+            day: "numeric",
+            month: "long",
+          }),
+          diff: DIFF_LABEL[info.difficulty],
+        }) + (solved ? t("tileSolved") : ""),
+      );
+      b.addEventListener("click", () =>
+        playEndless(null, null, today ? true : d),
+      );
+      el.pastGrid.appendChild(b);
+    });
+  }
+  el.pastBtn.addEventListener("click", () => {
+    el.past.hidden = !el.past.hidden;
+    el.pastBtn.setAttribute("aria-expanded", String(!el.past.hidden));
+    if (!el.past.hidden) renderPast();
+  });
 
   /* Today's result as a few lines of text with a link to today's level. */
   function dailyShareText() {
@@ -610,19 +694,24 @@
   el.dailyShare.addEventListener("click", () => shareDaily(el.dailyShare));
   el.dailyPlay.addEventListener("click", () => playEndless(null, null, true));
 
+  /* daily: true plays today's level, a Date plays the level of that day. */
   async function playEndless(difficulty, code, daily = false) {
     if (state.busy) return;
     if (el.dialog.open) el.dialog.close();
     state.busy = true;
     state.drag = null;
     state.armed = null;
-    const today = daily ? dailyFor() : null;
+    const today = daily ? dailyFor(daily === true ? new Date() : daily) : null;
+    const past = daily && today.key !== dayKey() ? today.key : null;
+    const dailyDate = daily === true ? new Date() : daily;
     if (today) difficulty = today.difficulty;
-    const title = daily
-      ? t("buildDaily")
-      : code
-        ? t("buildCode")
-        : t("build" + difficulty[0].toUpperCase() + difficulty.slice(1));
+    const title = past
+      ? t("buildPast")
+      : daily
+        ? t("buildDaily")
+        : code
+          ? t("buildCode")
+          : t("build" + difficulty[0].toUpperCase() + difficulty.slice(1));
     el.status.classList.remove("win", "warn");
     el.statusText.textContent = title;
     el.status.classList.add("busy");
@@ -670,12 +759,13 @@
     state.endless = {
       difficulty: lv.difficulty,
       level: lv,
-      daily: daily ? today.key : null,
+      daily: daily && !past ? today.key : null,
+      past,
     };
     el.levelNo.textContent = daily
       ? t("daily") +
         " · " +
-        new Date()
+        dailyDate
           .toLocaleDateString(I18n.locale, { day: "numeric", month: "short" })
           .toUpperCase()
       : t("endless");
@@ -796,6 +886,9 @@
     el.lit.classList.add("all");
     if (state.endless && state.endless.daily) {
       recordDaily(state.endless.daily);
+      renderDaily();
+    } else if (state.endless && state.endless.past) {
+      recordDay(state.endless.past);
       renderDaily();
     } else if (state.endless) {
       const d = state.endless.difficulty;
@@ -1083,9 +1176,13 @@
      one correct tile. Its mirror starts in the correct turn, so turning
      usually comes on the second level, where the hand points at the last
      placed piece and gives nothing away. The coach shows only to new players
-     (no level solved). It stops for good when all three gestures are done,
-     when the player skips it, or when the player goes past the second level.
-     It never takes input: taps pass through to the board and the tray. */
+     (no level solved), or when Settings asks for it again. It stops for good
+     when all three gestures are done, when the player skips it, or when the
+     player goes past the second level. After the first level it also points
+     at the Next level button.
+     It never takes input: taps pass through to the board and the tray.
+     prism.coach is true (finished), a list of gestures done, or
+     { again: true, learned: [...] } when Settings started it again. */
   const Coach = (function () {
     const HAND =
       '<svg viewBox="0 0 48 52" width="44" height="48" aria-hidden="true">' +
@@ -1101,8 +1198,16 @@
 
     const GESTURES = ["tray", "tile", "turn"];
     const saved = load("prism.coach", []);
-    let on = Array.isArray(saved) && state.done.size === 0;
-    const learned = new Set(on ? saved : GESTURES);
+    const again = !!(saved && saved.again);
+    let on = again || (Array.isArray(saved) && state.done.size === 0);
+    const learned = new Set(
+      !on ? GESTURES : again ? saved.learned || [] : saved,
+    );
+    // A mouse clicks, a finger taps.
+    const verb = () =>
+      window.matchMedia("(pointer: coarse)").matches
+        ? t("coachTap")
+        : t("coachClick");
     let root = null,
       hand = null,
       ripple = null,
@@ -1147,7 +1252,10 @@
       learned.add(g);
       if (g === "tile") learned.add("tray");
       if (GESTURES.every((x) => learned.has(x))) return stop();
-      save("prism.coach", [...learned]);
+      save(
+        "prism.coach",
+        again ? { again, learned: [...learned] } : [...learned],
+      );
     }
 
     /* Screen box of a tile, or of the tray chip for a tray id. */
@@ -1170,7 +1278,18 @@
 
     /* What the player should do next, or null for nothing to show. */
     function step() {
-      if (!state.result || state.result.solved) return null;
+      if (!state.result) return null;
+      // The first level is done: show the way on.
+      if (state.confirmed && state.level === 0 && !el.next.hidden) {
+        const r = el.next.getBoundingClientRect();
+        return {
+          kind: "tap",
+          // Low on the right side, so the button's text stays readable.
+          at: { x: r.right - 22, y: r.bottom - 12 },
+          say: null,
+        };
+      }
+      if (state.result.solved) return null;
       const turnable = state.pieces.filter(
         (p) => movable(p) && L.PIECES[p.type].states > 1,
       );
@@ -1224,7 +1343,9 @@
       const sig = s.kind + s.say;
       if (sig !== shown) {
         shown = sig;
-        text.textContent = t(s.say);
+        // The Next level step has no tip: the tip would cover the button.
+        tip.hidden = !s.say;
+        if (s.say) text.textContent = t(s.say, { tap: verb() });
         root.classList.remove("play");
         void root.offsetWidth;
         if (!reduceMotion) root.classList.add("play");
@@ -2144,8 +2265,10 @@
     drawLight(t);
     const e = state.solvedAt === null ? 1 : (t - state.solvedAt) / BURST_MS;
     const boost = e < 1 && !reduceMotion ? 1 + 1.4 * Math.pow(1 - e, 2) : 1;
-    compositor.render(base, light, baseDirty, boost);
-    state.baseDirty = false;
+    if (compositor) {
+      compositor.render(base, light, baseDirty, boost);
+      state.baseDirty = false;
+    }
     if (!maybeSleep(t)) requestAnimationFrame(frame);
   }
 
@@ -2175,6 +2298,9 @@
   renderEndless();
   applyTheme();
   layout();
+  const known = webglKnown();
+  if (known === null) webglCheck().then(startCompositor);
+  else startCompositor(known);
   requestAnimationFrame(frame);
 
   /* Coming back from Settings with the browser's back button can show this
@@ -2198,7 +2324,12 @@
   window.__prism = {
     state,
     L,
-    accelerated: compositor.accelerated,
+    get accelerated() {
+      return !!compositor && compositor.accelerated;
+    },
+    get drawing() {
+      return !!compositor;
+    },
     theme,
     giveHint,
     loadLevel,

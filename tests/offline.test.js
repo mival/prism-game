@@ -6,12 +6,12 @@ const assert = require("node:assert/strict");
 const fs = require("fs");
 const path = require("path");
 const { chromium } = require("playwright");
-const { serve, watchErrors, ROOT } = require("./helpers.js");
+const { serve, watchErrors, launchOptions, ROOT } = require("./helpers.js");
 
 let server, browser;
 before(async () => {
   server = await serve();
-  browser = await chromium.launch();
+  browser = await chromium.launch(launchOptions());
 });
 after(async () => {
   await browser.close();

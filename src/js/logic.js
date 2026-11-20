@@ -102,7 +102,7 @@
       id: "first-light",
       name: "First Light",
       difficulty: "easy",
-      hint: "Place the mirror where it turns the beam down into the receiver. Tap a placed piece to rotate it.",
+      hint: "Place the mirror where it turns the beam down into the receiver.",
       sources: [
         {
           x: 0,
@@ -143,7 +143,7 @@
       id: "spectrum",
       name: "Spectrum",
       difficulty: "easy",
-      hint: "A prism splits white light into red, green and blue. Each receiver lights only for its own color.",
+      hint: "A prism splits white light into red, green and blue. Each receiver lights only for its own color. Tap a placed piece to turn it.",
       sources: [
         {
           x: 0,

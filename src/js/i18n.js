@@ -61,10 +61,13 @@
       stuck: "Stuck? The hint button shows where a piece belongs.",
       hintShown:
         "Look at the marked tile. Tap the hint again to have it done for you.",
-      coachTray: "Tap the piece in the tray to pick it up.",
-      coachTile: "Now tap the tile the hand points to.",
+      coachTap: "Tap",
+      coachClick: "Click",
+      coachTray: ({ tap }) => `${tap} the piece in the tray to pick it up.`,
+      coachTile: ({ tap }) =>
+        `Now ${tap.toLowerCase()} the tile the hand points to.`,
       coachMove: "Drag the piece to the tile the hand points to.",
-      coachTurn: "Tap a placed piece to turn it.",
+      coachTurn: ({ tap }) => `${tap} a placed piece to turn it.`,
       coachSkip: "Skip",
       share: "Share",
       shareText: ({ date, hints, moves, time, streak, url }) =>
@@ -97,6 +100,8 @@
       flip: "Flip (F)",
       takeBack: "Back to the tray (Delete)",
       buildDaily: "Building today's level…",
+      buildPast: "Building the level of that day…",
+      pastDay: ({ date, diff }) => `${date}, ${diff}`,
       buildCode: "Building that level…",
       buildEasy: "Building an easy level…",
       buildMedium: "Building a medium level…",
@@ -192,10 +197,13 @@
       stuck: "Nevíš si rady? Tlačítko nápovědy ukáže, kam patří dílek.",
       hintShown:
         "Podívej se na označené pole. Dalším ťuknutím na nápovědu se tah provede za tebe.",
-      coachTray: "Ťukni na dílek v zásobníku a vezmi ho.",
-      coachTile: "Teď ťukni na pole, kam ukazuje ruka.",
+      coachTap: "Ťukni",
+      coachClick: "Klikni",
+      coachTray: ({ tap }) => `${tap} na dílek v zásobníku a vezmi ho.`,
+      coachTile: ({ tap }) =>
+        `Teď ${tap.toLowerCase()} na pole, kam ukazuje ruka.`,
       coachMove: "Přetáhni dílek na pole, kam ukazuje ruka.",
-      coachTurn: "Ťukni na položený dílek a otoč ho.",
+      coachTurn: ({ tap }) => `${tap} na položený dílek a otoč ho.`,
       coachSkip: "Přeskočit",
       share: "Sdílet",
       shareText: ({ date, hints, moves, time, streak, url }) =>
@@ -230,6 +238,8 @@
       flip: "Překlopit (F)",
       takeBack: "Vrátit do zásobníku (Delete)",
       buildDaily: "Stavím dnešní úroveň…",
+      buildPast: "Stavím úroveň toho dne…",
+      pastDay: ({ date, diff }) => `${date}, ${diff}`,
       buildCode: "Stavím úroveň z kódu…",
       buildEasy: "Stavím lehkou úroveň…",
       buildMedium: "Stavím střední úroveň…",
@@ -416,6 +426,9 @@
     "Building a level…": "Stavím úroveň…",
     Cancel: "Zrušit",
     "Today's level": "Dnešní úroveň",
+    "Earlier days": "Dřívější dny",
+    "Earlier days do not count for the streak.":
+      "Dřívější dny se do série nepočítají.",
     Play: "Hrát",
     Endless: "Nekonečno",
     "New levels, made on the spot. Each one has a code you can share.":
@@ -451,6 +464,13 @@
     "Each level has one or more lasers and receivers. Place and turn pieces so every receiver gets light of exactly the color it shows, while no dark sensor gets any light at all.":
       "Každá úroveň má jeden nebo více laserů a přijímačů. Pokládej a otáčej dílky tak, aby každý přijímač dostal světlo přesně té barvy, kterou ukazuje, a na žádný temný senzor nedopadlo vůbec žádné světlo.",
     Controls: "Ovládání",
+    "First visit.": "První spuštění.",
+    "An animated hand shows these moves on the first two levels. Settings can show it again.":
+      "Animovaná ruka ukáže tyto tahy v prvních dvou úrovních. V Nastavení ji můžeš zapnout znovu.",
+    Tutorial: "Návod",
+    "An animated hand shows how to place and turn pieces on the first two levels.":
+      "Animovaná ruka ukáže v prvních dvou úrovních, jak dílky pokládat a otáčet.",
+    "Show the tutorial again": "Ukázat návod znovu",
     "Place.": "Pokládání.",
     "Tap a piece in the tray, then tap an empty tile. You can also drag it straight onto the board.":
       "Ťukni na dílek v zásobníku a pak na prázdné pole. Dílek můžeš také přetáhnout rovnou na plochu.",

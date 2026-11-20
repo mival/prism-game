@@ -15,7 +15,7 @@ Play it at https://mival.github.io/prism-game/
 - Dark sensors must receive no light at all. Light entering a portal leaves its twin. Fixed pieces (bolts in the corners) can be turned but not moved.
 - The bulb button gives a hint: it places one piece in its correct spot and locks it. After 30 seconds without a move, the bulb glows.
 
-On the first visit, an animated hand teaches the three gestures: tap a tray piece, tap a tile to place it, and tap a placed piece to turn it. Each gesture shows until the player does it once. The first level teaches the tray and the tile. Its mirror starts in the correct turn, so turning usually comes on the second level. The hand never takes input, and Skip stops it. Players who solved a level before never see it. `Coach` in `src/js/main.js` holds the steps, and `prism.coach` keeps the gestures done (`true` when the coach is finished).
+On the first visit, an animated hand teaches the three gestures: tap a tray piece, tap a tile to place it, and tap a placed piece to turn it. Each gesture shows until the player does it once. The first level teaches the tray and the tile. Its mirror starts in the correct turn, so turning usually comes on the second level. After the first level, the hand points at the Next level button. The text says "Click" to a mouse and "Tap" to a finger. The hand never takes input, and Skip stops it. Players who solved a level before never see it, but Settings > Tutorial starts it again. Reset progress also starts it again. `Coach` in `src/js/main.js` holds the steps, and `prism.coach` keeps the gestures done. It is `true` when the coach is finished, and `{ again: true, learned: [...] }` after Settings started it again.
 
 On touch screens, tap a piece to turn it and drag to move it. With a mouse, pointing at a placed piece shows buttons to turn it either way, flip a prism or take it back to the tray; with the keyboard, the arrow keys move a cursor over the board, Enter places or turns, R and Shift+R turn, F flips and Delete takes a piece back.
 
@@ -35,7 +35,7 @@ Each generated level has a code like `M-48213` (difficulty and seed). The same c
 
 ### Today's level
 
-The Levels dialog starts with a daily level: its seed is a hash of the local date and its difficulty follows the weekday (Monday and Thursday easy, Tuesday and Friday medium, the rest hard). The builder runs in "exact" mode, returning the lowest valid seed from there even though several workers search in parallel, so every device builds the same level. Solving it on consecutive days builds a streak (`prism.daily`).
+The Levels dialog starts with a daily level: its seed is a hash of the local date and its difficulty follows the weekday (Monday and Thursday easy, Tuesday and Friday medium, the rest hard). The builder runs in "exact" mode, returning the lowest valid seed from there even though several workers search in parallel, so every device builds the same level. Solving it on consecutive days builds a streak (`prism.daily`). Earlier days opens a calendar of the last 28 days. The level of a day comes from its date, so a player can still play a missed day. These solves are kept in `prism.dailyDays`, show in the calendar, and do not change the streak. Save codes do not carry them.
 
 ### Offline and installing
 
@@ -63,7 +63,7 @@ To add a theme, copy the light block in `theme.css` under a new `:root[data-them
 
 - `src/css/theme.css` holds the theme variables; `src/css/style.css` holds layout and components.
 - `src/js/logic.js` holds the puzzle rules, the levels and the beam tracer. It has no DOM code, so it also runs in Node.
-- `src/js/render.js` draws the pieces with Canvas 2D and composites the frame with WebGL, including a GPU bloom pass on the light layer. It falls back to Canvas 2D when WebGL is unavailable.
+- `src/js/render.js` draws the pieces with Canvas 2D and composites the frame with WebGL, including a GPU bloom pass on the light layer. It falls back to Canvas 2D when WebGL is unavailable. A bad graphics driver can block the page when WebGL starts. Thus, on a first visit, a Web Worker first tries WebGL with a time limit of 1.5 s (`webglCheck`). `prism.gl` keeps the result. A "bad" result is checked again after 7 days.
 - `src/js/main.js` handles layout, input, hints and the render loop.
 - `help.html` and `src/js/help.js` are the help page; its examples are tiny levels drawn by the same renderer.
 - `settings.html` and `src/js/settings.js` are the settings page: theme, moving progress, restore and reset. `src/css/page.css` styles both pages.
@@ -85,5 +85,7 @@ npx playwright install chromium
 npm test
 npm run format:check
 ```
+
+`PRISM_CHROMIUM_ARGS` adds flags to the test browser. On a host where WebGL does not start in headless Chromium, the pages do not load. Then run `PRISM_CHROMIUM_ARGS="--use-gl=disabled" npm test`. The game uses its Canvas 2D fallback in that run.
 
 The site is a static page with no build step. `.github/workflows/pages.yml` runs the tests and the formatting check on every pull request and every push to `main`, and deploys to GitHub Pages only when they pass.

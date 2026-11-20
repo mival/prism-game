@@ -979,3 +979,74 @@ dialog#levelDialog::backdrop {
     transform: translate(var(--dx), var(--dy));
   }
 }
+
+/* Earlier daily levels: a calendar of the last days in the daily card. */
+.daily-past-btn {
+  margin-top: 10px;
+  padding: 4px 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.daily-past-btn::after {
+  content: " ▾";
+}
+.daily-past-btn[aria-expanded="true"]::after {
+  content: " ▴";
+}
+.past-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  margin: 8px 0;
+}
+.past-head {
+  text-align: center;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--muted);
+}
+.past-day {
+  position: relative;
+  min-height: 36px;
+  padding: 0;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 13px;
+  cursor: pointer;
+}
+/* A line in the color of the difficulty. */
+.past-day::after {
+  content: "";
+  position: absolute;
+  left: 30%;
+  right: 30%;
+  bottom: 4px;
+  height: 2px;
+  border-radius: 1px;
+  background: currentColor;
+}
+.past-day.easy::after {
+  color: var(--lit);
+}
+.past-day.medium::after {
+  color: var(--hint);
+}
+.past-day.hard::after {
+  color: var(--warn);
+}
+.past-day.solved {
+  border-color: var(--lit);
+  background: var(--lit-soft);
+}
+.past-day.today {
+  border-color: var(--text);
+  font-weight: 600;
+}

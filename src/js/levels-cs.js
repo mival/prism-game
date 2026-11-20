@@ -6,11 +6,11 @@
   const LEVELS_CS = {
     "first-light": [
       "První světlo",
-      "Polož zrcadlo tam, kde stočí paprsek dolů do přijímače. Ťuknutím na položený dílek ho otočíš.",
+      "Polož zrcadlo tam, kde stočí paprsek dolů do přijímače.",
     ],
     spectrum: [
       "Spektrum",
-      "Hranol rozloží bílé světlo na červenou, zelenou a modrou. Každý přijímač se rozsvítí jen svou barvou.",
+      "Hranol rozloží bílé světlo na červenou, zelenou a modrou. Každý přijímač se rozsvítí jen svou barvou. Ťuknutím na položený dílek ho otočíš.",
     ],
     "glass-doors": [
       "Skleněné dveře",

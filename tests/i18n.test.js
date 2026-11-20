@@ -6,12 +6,12 @@
 const { test, before, after } = require("node:test");
 const assert = require("node:assert/strict");
 const { chromium, devices } = require("playwright");
-const { serve, watchErrors } = require("./helpers.js");
+const { serve, watchErrors, launchOptions } = require("./helpers.js");
 
 let server, browser;
 before(async () => {
   server = await serve();
-  browser = await chromium.launch();
+  browser = await chromium.launch(launchOptions());
 });
 after(async () => {
   await browser.close();
