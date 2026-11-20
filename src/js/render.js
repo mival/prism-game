@@ -773,6 +773,109 @@
       gl_FragColor = vec4(min(c, vec3(1.0)), 1.0);
     }`;
 
+  /* WebGL calls block the page. With a bad graphics driver, the first calls
+     can block it for many seconds or for good. A timer cannot stop a blocked
+     call, so the game does these checks:
+     - A Web Worker first does the same kind of calls, with a time limit. If
+       the worker does not answer in time, the game uses Canvas 2D.
+     - prism.gl keeps the result, so only the first visit waits for the
+       worker. A "bad" result is checked again after GL_RETRY_MS.
+     - The record says "starting" while the page starts WebGL. If a page load
+       finds "starting", the last start did not complete: use Canvas 2D. */
+  const GL_KEY = "prism.gl";
+  const GL_LIMIT_MS = 1500;
+  const GL_RETRY_MS = 7 * 24 * 3600 * 1000;
+
+  function glRecord() {
+    try {
+      return JSON.parse(localStorage.getItem(GL_KEY)) || {};
+    } catch (e) {
+      return {};
+    }
+  }
+  function glRemember(s) {
+    try {
+      localStorage.setItem(GL_KEY, JSON.stringify({ s, t: Date.now() }));
+    } catch (e) {
+      /* the next visit checks again */
+    }
+  }
+
+  /* What an earlier visit found: true (WebGL is safe), false (use Canvas
+     2D), or null (not known: check with webglCheck). */
+  function webglKnown() {
+    const r = glRecord();
+    if (r.s === "ok") return true;
+    if (r.s === "bad" || r.s === "starting")
+      return Date.now() - r.t < GL_RETRY_MS ? false : null;
+    return null;
+  }
+
+  /* The worker makes a WebGL context, compiles and links a small program,
+     draws and reads a pixel. It answers "ok", or "none" when it cannot make
+     a context (the page can have more luck than the worker). */
+  const GL_PROBE = `
+    try {
+      const gl = new OffscreenCanvas(8, 8).getContext("webgl");
+      if (!gl) postMessage("none");
+      else {
+        const sh = (type, src) => {
+          const s = gl.createShader(type);
+          gl.shaderSource(s, src);
+          gl.compileShader(s);
+          return s;
+        };
+        const p = gl.createProgram();
+        gl.attachShader(p, sh(gl.VERTEX_SHADER,
+          "attribute vec2 p; void main(){ gl_Position = vec4(p, 0.0, 1.0); }"));
+        gl.attachShader(p, sh(gl.FRAGMENT_SHADER,
+          "precision mediump float; void main(){ gl_FragColor = vec4(1.0); }"));
+        gl.linkProgram(p);
+        const ok = gl.getProgramParameter(p, gl.LINK_STATUS);
+        gl.useProgram(p);
+        gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
+        gl.bufferData(gl.ARRAY_BUFFER,
+          new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+        gl.enableVertexAttribArray(0);
+        gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+        gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array(4));
+        postMessage(ok ? "ok" : "bad");
+      }
+    } catch (e) {
+      postMessage("none");
+    }`;
+
+  /* Resolves to true when the page can start WebGL, and false when it must
+     use Canvas 2D. Without worker support there is no check: the answer is
+     true, and the "starting" record protects the next page load. */
+  function webglCheck(limitMs = GL_LIMIT_MS) {
+    return new Promise((resolve) => {
+      let worker = null,
+        url = null,
+        timer = 0;
+      const done = (answer) => {
+        clearTimeout(timer);
+        if (worker) worker.terminate();
+        if (url) URL.revokeObjectURL(url);
+        if (answer === "bad") glRemember("bad");
+        resolve(answer !== "bad");
+      };
+      try {
+        if (typeof OffscreenCanvas === "undefined") return done("none");
+        url = URL.createObjectURL(
+          new Blob([GL_PROBE], { type: "text/javascript" }),
+        );
+        worker = new Worker(url);
+        worker.onmessage = (e) => done(e.data);
+        worker.onerror = () => done("none");
+        timer = setTimeout(() => done("bad"), limitMs);
+      } catch (e) {
+        done("none");
+      }
+    });
+  }
+
   class Compositor {
     constructor(canvas, options = {}) {
       this.canvas = canvas;
@@ -781,11 +884,12 @@
         antialias: false,
         premultipliedAlpha: false,
       };
-      this.gl =
-        options.webgl === false
-          ? null
-          : canvas.getContext("webgl", opts) ||
-            canvas.getContext("experimental-webgl", opts);
+      const tryGL = options.webgl !== false;
+      if (tryGL) glRemember("starting");
+      this.gl = tryGL
+        ? canvas.getContext("webgl", opts) ||
+          canvas.getContext("experimental-webgl", opts)
+        : null;
       if (this.gl) {
         try {
           this.initGL();
@@ -794,6 +898,9 @@
           this.gl = null;
         }
       }
+      // The start completed. "none" is not kept as "bad": no context is a
+      // fast answer, so the next visit can ask again.
+      if (tryGL) glRemember(this.gl ? "ok" : "none");
       if (!this.gl) this.ctx = canvas.getContext("2d");
     }
 
@@ -976,5 +1083,14 @@
     }
   }
 
-  root.PrismRender = { COLORS, Draw, Scene, Compositor, readTheme, theme: T };
+  root.PrismRender = {
+    COLORS,
+    Draw,
+    Scene,
+    Compositor,
+    webglKnown,
+    webglCheck,
+    readTheme,
+    theme: T,
+  };
 })(window);

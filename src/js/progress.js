@@ -487,6 +487,9 @@
     write("prism.hints", {});
     write("prism.stats", {});
     write("prism.attempt", { id: null, hints: 0 });
+    write("prism.dailyDays", []);
+    // A new start: the first-run hand teaches again.
+    write("prism.coach", []);
   }
 
   const api = {

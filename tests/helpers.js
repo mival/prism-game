@@ -47,6 +47,16 @@ function serve() {
   );
 }
 
+/* Options for chromium.launch(). PRISM_CHROMIUM_ARGS adds browser flags,
+   with spaces between them. Example: on a host where WebGL does not start
+   in headless Chromium, set it to "--use-gl=disabled". */
+function launchOptions() {
+  const args = (process.env.PRISM_CHROMIUM_ARGS || "")
+    .split(/\s+/)
+    .filter(Boolean);
+  return args.length ? { args } : {};
+}
+
 /* Collects page errors and console errors (ignoring blocked web fonts). */
 function watchErrors(page) {
   const errors = [];
@@ -118,4 +128,11 @@ async function solveByTaps(page, { confirm = true } = {}) {
   );
 }
 
-module.exports = { serve, watchErrors, tapCell, solveByTaps, ROOT };
+module.exports = {
+  serve,
+  watchErrors,
+  tapCell,
+  solveByTaps,
+  launchOptions,
+  ROOT,
+};

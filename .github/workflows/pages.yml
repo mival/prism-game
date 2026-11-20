@@ -16,8 +16,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -44,8 +44,8 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/configure-pages@v5
+      - uses: actions/checkout@v7
+      - uses: actions/configure-pages@v6
       # Stamp this release: the pages carry the version they were built as,
       # and version.json says what is newest, so an open app can tell when
       # it is out of date.
@@ -60,8 +60,13 @@ jobs:
             grep -q "content=\"$V\"" "$f" || { echo "version not stamped in $f"; exit 1; }
           done
           cat version.json
-      - uses: actions/upload-pages-artifact@v3
+      # Each attempt has its own artifact name. Then "Re-run failed jobs"
+      # does not find two artifacts with the same name.
+      - uses: actions/upload-pages-artifact@v5
         with:
+          name: github-pages-${{ github.run_attempt }}
           path: .
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
+        with:
+          artifact_name: github-pages-${{ github.run_attempt }}

@@ -279,6 +279,19 @@
           </button>
           <button type="button" class="daily-play" id="dailyPlay">Play</button>
         </div>
+        <button
+          type="button"
+          class="daily-past-btn"
+          id="dailyPastBtn"
+          aria-expanded="false"
+          aria-controls="dailyPast"
+        >
+          Earlier days
+        </button>
+        <div id="dailyPast" hidden>
+          <div class="past-grid" id="dailyPastGrid"></div>
+          <p class="daily-note">Earlier days do not count for the streak.</p>
+        </div>
       </section>
 
       <section class="endless" aria-labelledby="endlessTitle">

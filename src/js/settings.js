@@ -19,6 +19,23 @@
     });
   });
 
+  /* ------------------------------ tutorial ------------------------------ */
+
+  /* Starts the first-run hand again (Coach in main.js reads prism.coach)
+     and opens the first level, where it starts. */
+  $("coachAgain").addEventListener("click", () => {
+    try {
+      localStorage.setItem(
+        "prism.coach",
+        JSON.stringify({ again: true, learned: [] }),
+      );
+      localStorage.setItem("prism.levelId", JSON.stringify(L.LEVELS[0].id));
+    } catch (e) {
+      /* without storage the game cannot know: it opens as usual */
+    }
+    location.href = "index.html";
+  });
+
   /* ------------------------------ theme ------------------------------ */
 
   /* Color letters: read by the renderer (prism.letters). */

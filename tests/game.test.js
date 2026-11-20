@@ -4,12 +4,18 @@
 const { test, before, after } = require("node:test");
 const assert = require("node:assert/strict");
 const { chromium, devices } = require("playwright");
-const { serve, watchErrors, tapCell, solveByTaps } = require("./helpers.js");
+const {
+  serve,
+  watchErrors,
+  tapCell,
+  solveByTaps,
+  launchOptions,
+} = require("./helpers.js");
 
 let server, browser;
 before(async () => {
   server = await serve();
-  browser = await chromium.launch();
+  browser = await chromium.launch(launchOptions());
 });
 after(async () => {
   await browser.close();
@@ -210,6 +216,53 @@ test("today's level is the same on every device and builds a streak", async () =
   await b.ctx.close();
 });
 
+test("an earlier daily level can be played, without a change to the streak", async () => {
+  const { ctx, page, errors } = await phone();
+  await page.clock.setFixedTime(new Date("2026-11-16T10:00:00"));
+  await page.tap("#levelsBtn");
+  await page.tap("#dailyPastBtn");
+  const days = await page.$$eval(".past-day", (list) =>
+    list.map((b) => b.dataset.day),
+  );
+  assert.equal(days.length, 28);
+  assert.equal(days[0], "2026-10-20");
+  assert.equal(days[27], "2026-11-16");
+  // Friday 13 November: a medium day.
+  assert.match(
+    await page.getAttribute('[data-day="2026-11-13"]', "class"),
+    /medium/,
+  );
+  await page.tap('[data-day="2026-11-13"]');
+  await page.waitForFunction(() => window.__prism.state.endless?.past, null, {
+    timeout: 30000,
+  });
+  assert.match(await page.textContent("#levelNo"), /13/);
+  for (
+    let i = 0;
+    i < 30 && !(await page.evaluate(() => window.__prism.state.result.solved));
+    i++
+  )
+    await page.evaluate(() => window.__prism.giveHint());
+  await page.waitForFunction(() => window.__prism.state.confirmed, null, {
+    timeout: 5000,
+  });
+  assert.deepEqual(
+    await page.evaluate(() => ({
+      days: JSON.parse(localStorage.getItem("prism.dailyDays")),
+      daily: localStorage.getItem("prism.daily"),
+      endless: localStorage.getItem("prism.endless"),
+    })),
+    { days: ["2026-11-13"], daily: null, endless: null },
+  );
+  await page.tap("#levelsBtn");
+  assert.match(
+    await page.getAttribute('[data-day="2026-11-13"]', "class"),
+    /solved/,
+  );
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
+
 test("no horizontal scrolling on a small phone", async () => {
   const { ctx, page } = await phone({ ...devices["iPhone SE"] });
   for (const p of ["index.html", "help.html", "settings.html"]) {
@@ -282,6 +335,48 @@ test("a hint first marks the tile, then places the piece; both count once", asyn
   await ctx.close();
 });
 
+test("a WebGL start that does not complete falls back to Canvas 2D", async () => {
+  // Opens the game after an init script, and reports how it draws.
+  const open = async (init) => {
+    const ctx = await browser.newContext({ ...devices["iPhone 13"] });
+    await ctx.addInitScript(init);
+    const page = await ctx.newPage();
+    const errors = watchErrors(page);
+    await page.goto(server.url + "index.html");
+    await page.waitForFunction(() => window.__prism?.drawing, null, {
+      timeout: 5000,
+    });
+    const out = await page.evaluate(() => ({
+      accelerated: window.__prism.accelerated,
+      record: JSON.parse(localStorage.getItem("prism.gl") || "{}").s,
+    }));
+    assert.deepEqual(errors, []);
+    await ctx.close();
+    return out;
+  };
+  // The check worker never answers: the time limit ends the wait.
+  const stuck = await open(() => {
+    localStorage.clear();
+    window.Worker = class {
+      terminate() {}
+    };
+  });
+  assert.deepEqual(stuck, { accelerated: false, record: "bad" });
+  // The last page load did not complete its WebGL start.
+  const crashed = await open(() => {
+    localStorage.setItem(
+      "prism.gl",
+      JSON.stringify({ s: "starting", t: Date.now() }),
+    );
+  });
+  assert.deepEqual(crashed, { accelerated: false, record: "starting" });
+  // An old "bad" record is checked again, and the board still draws.
+  const old = await open(() => {
+    localStorage.setItem("prism.gl", JSON.stringify({ s: "bad", t: 1 }));
+  });
+  assert.notEqual(old.record, "starting");
+});
+
 test("a first-run hand teaches tap, place and turn", async () => {
   const { ctx, page, errors } = await phone();
   const tip = () =>
@@ -306,6 +401,24 @@ test("a first-run hand teaches tap, place and turn", async () => {
   await page.waitForFunction(() => window.__prism.state.confirmed, null, {
     timeout: 5000,
   });
+  // Then the hand points at the Next level button, without a tip.
+  assert.deepEqual(
+    await page.evaluate(() => {
+      const box = (q) => document.querySelector(q).getBoundingClientRect();
+      const hand = box(".coach-hand"),
+        next = box("#next");
+      return {
+        shown: !document.getElementById("coach").hidden,
+        tip: !document.querySelector(".coach-tip").hidden,
+        onNext:
+          hand.left > next.left &&
+          hand.left < next.right &&
+          hand.top > next.top &&
+          hand.top < next.bottom,
+      };
+    }),
+    { shown: true, tip: false, onNext: true },
+  );
   // Level 2: turning is taught on the piece just placed.
   await page.evaluate(() => window.__prism.loadLevel(1));
   assert.equal(await tip(), null);
@@ -342,7 +455,22 @@ test("the first-run hand can be skipped and skips returning players", async () =
   await page.reload();
   await page.waitForFunction(() => window.__prism?.state.result);
   assert.equal(await page.$("#coach"), null);
+  // Settings starts it again, on the first level, also with progress.
+  await page.goto(server.url + "settings.html");
+  await page.tap("#coachAgain");
+  await page.waitForFunction(() => window.__prism?.state.result);
+  assert.equal(await page.evaluate(() => window.__prism.state.level), 0);
+  assert.match(await page.textContent("#coach p"), /^Ťukni na dílek/);
   assert.deepEqual(errors, []);
+  await ctx.close();
+});
+
+test("the first-run hand says Click to a mouse", async () => {
+  const ctx = await browser.newContext({ locale: "en-US" });
+  const page = await ctx.newPage();
+  await page.goto(server.url + "index.html");
+  await page.waitForFunction(() => window.__prism?.state.result);
+  assert.match(await page.textContent("#coach p"), /^Click the piece/);
   await ctx.close();
 });
 
